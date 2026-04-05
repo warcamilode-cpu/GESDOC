@@ -1,4 +1,4 @@
-# DocManager — Gestor Personal de Documentos
+# DocManager — Gestor de Documentos
 
 Aplicación de escritorio en PyQt5 para leer, anotar y organizar documentos
 en múltiples formatos (PDF, Word, Markdown, TXT).
