@@ -351,6 +351,50 @@ body {
 #drop-overlay.visible { display: flex; }
 #drop-overlay i { font-size: 48pt; opacity: .8; }
 
+/* ── Toggle panel buttons ── */
+.topbar-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--surface1);
+  flex-shrink: 0;
+}
+.toggle-panel-btn {
+  color: var(--subtext0);
+  padding: 5px 7px;
+  border-radius: var(--r6);
+  transition: all var(--trans);
+}
+.toggle-panel-btn.panel-hidden { color: var(--surface2); }
+.toggle-panel-btn:hover { color: var(--blue); background: rgba(137,180,250,.1); }
+
+/* ── Paneles colapsables ── */
+#sidebar, #comments-panel {
+  transition: width 220ms ease, min-width 220ms ease, opacity 200ms ease;
+  overflow: hidden;
+}
+#sidebar.collapsed, #comments-panel.collapsed {
+  width: 0 !important;
+  min-width: 0 !important;
+  opacity: 0;
+  border: none;
+}
+#sidebar.collapsed + .resizer,
+.resizer:has(+ #comments-panel.collapsed) { display: none; }
+
+/* ── Pantalla completa ── */
+#viewer-panel.fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: var(--base);
+}
+#viewer-panel.fullscreen #viewer-header {
+  padding: 8px 16px;
+}
+.btn-fullscreen-exit { display: none; }
+#viewer-panel.fullscreen .btn-fullscreen-exit { display: inline-flex; }
+#viewer-panel.fullscreen .btn-fullscreen-enter { display: none; }
+
 /* ── Resizer ── */
 .resizer {
   width: 4px;
@@ -969,6 +1013,14 @@ body {
   </div>
   <div class="topbar-right">
     <span id="stats-badge"><i class='bx bx-loader-circle' style="animation:spin 1s linear infinite;vertical-align:middle;"></i> Cargando</span>
+    <div class="topbar-sep"></div>
+    <button class="btn-icon toggle-panel-btn" id="btn-toggle-sidebar" onclick="togglePanel('sidebar')" title="Mostrar/ocultar biblioteca">
+      <i class='bx bx-layout'></i>
+    </button>
+    <button class="btn-icon toggle-panel-btn" id="btn-toggle-comments" onclick="togglePanel('comments-panel')" title="Mostrar/ocultar comentarios">
+      <i class='bx bx-message-dots'></i>
+    </button>
+    <div class="topbar-sep"></div>
     <button class="btn btn-ghost btn-sm" onclick="abrirModalCarpeta(null)">
       <i class='bx bx-folder-plus'></i> Carpeta
     </button>
@@ -1205,6 +1257,7 @@ function crearNodoCarpeta(carpeta) {
     <i class='bx bxs-folder f-icon' style="color:${carpeta.color || 'var(--blue)'};"></i>
     <span class="f-label">${escapeHtml(carpeta.name)}</span>
     <span class="f-actions">
+      <button class="btn-icon btn-sm" title="Nueva subcarpeta" onclick="event.stopPropagation();abrirModalCarpeta(null,${carpeta.id})"><i class='bx bx-folder-plus'></i></button>
       <button class="btn-icon btn-sm" title="Editar" onclick="event.stopPropagation();abrirModalCarpeta(${carpeta.id})"><i class='bx bx-edit'></i></button>
       <button class="btn-icon btn-sm" title="Eliminar" onclick="event.stopPropagation();eliminarCarpeta(${carpeta.id})"><i class='bx bx-trash'></i></button>
     </span>
@@ -1334,6 +1387,9 @@ async function renderVisorHeader(doc) {
        download="${escapeHtml(doc.name)}" title="Descargar"><i class='bx bx-download'></i></a>
     <button class="btn-icon" onclick="exportarComentarios('excel')" title="Exportar Excel"><i class='bx bx-spreadsheet'></i></button>
     <button class="btn-icon" onclick="exportarComentarios('csv')" title="Exportar CSV"><i class='bx bx-table'></i></button>
+    <span style="width:1px;height:18px;background:var(--surface1);display:inline-block;margin:0 2px;vertical-align:middle;"></span>
+    <button class="btn-icon btn-fullscreen-enter" onclick="toggleFullscreen()" title="Pantalla completa"><i class='bx bx-fullscreen'></i></button>
+    <button class="btn-icon btn-fullscreen-exit" onclick="toggleFullscreen()" title="Salir de pantalla completa"><i class='bx bx-exit-fullscreen'></i></button>
     <button class="btn-icon" style="color:var(--red);" onclick="eliminarDoc()" title="Eliminar"><i class='bx bx-trash'></i></button>
   `;
 
@@ -1690,13 +1746,14 @@ document.addEventListener('drop', e => {
 });
 
 // ─── Modal: nueva / editar carpeta ───────────────────────────────────────────
-function abrirModalCarpeta(carpetaId) {
+function abrirModalCarpeta(carpetaId, parentId = null) {
+  const titulo = carpetaId ? 'Editar Carpeta' : (parentId ? 'Nueva Subcarpeta' : 'Nueva Carpeta');
   const overlay = crearOverlay();
   overlay.innerHTML = `
     <div class="modal">
       <div class="modal-head">
         <i class='bx bx-folder-plus'></i>
-        <h3>${carpetaId ? 'Editar Carpeta' : 'Nueva Carpeta'}</h3>
+        <h3>${titulo}</h3>
       </div>
       <div class="modal-field">
         <label>Nombre</label>
@@ -1714,14 +1771,14 @@ function abrirModalCarpeta(carpetaId) {
       </div>
       <div class="modal-actions">
         <button class="btn btn-ghost" onclick="cerrarModal()"><i class='bx bx-x'></i> Cancelar</button>
-        <button class="btn btn-primary" onclick="guardarCarpeta(${carpetaId})"><i class='bx bx-check'></i> Guardar</button>
+        <button class="btn btn-primary" onclick="guardarCarpeta(${carpetaId ?? 'null'}, ${parentId ?? 'null'})"><i class='bx bx-check'></i> Guardar</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
   document.getElementById('m-folder-name').focus();
 }
 
-async function guardarCarpeta(carpetaId) {
+async function guardarCarpeta(carpetaId, parentId = null) {
   const name  = document.getElementById('m-folder-name').value.trim();
   const icon  = document.getElementById('m-folder-icon').value.trim();
   const color = document.getElementById('m-folder-color').value;
@@ -1731,8 +1788,8 @@ async function guardarCarpeta(carpetaId) {
       await api('PUT', `/folders/${carpetaId}`, { name, icon, color });
       toast('Carpeta actualizada', 'ok');
     } else {
-      await api('POST', '/folders/', { name, icon, color, parent_id: null });
-      toast('Carpeta creada', 'ok');
+      await api('POST', '/folders/', { name, icon, color, parent_id: parentId || null });
+      toast(parentId ? 'Subcarpeta creada' : 'Carpeta creada', 'ok');
     }
     cerrarModal();
     await cargarArbol();
@@ -1962,6 +2019,33 @@ document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'f') { e.preventDefault(); document.getElementById('search-global').focus(); }
   if (e.key === 'Escape') { cerrarModal(); cerrarBusqueda(); }
 });
+
+// ─── Toggle paneles laterales ────────────────────────────────────────────────
+function togglePanel(panelId) {
+  const panel = document.getElementById(panelId);
+  const btn   = document.getElementById(`btn-toggle-${panelId === 'sidebar' ? 'sidebar' : 'comments'}`);
+  const esColapsado = panel.classList.toggle('collapsed');
+  btn?.classList.toggle('panel-hidden', esColapsado);
+  // Ocultar/mostrar resizer adyacente
+  const resizerId = panelId === 'sidebar' ? 'resizer-left' : 'resizer-right';
+  const resizer   = document.getElementById(resizerId);
+  if (resizer) resizer.style.display = esColapsado ? 'none' : '';
+}
+
+// ─── Pantalla completa ───────────────────────────────────────────────────────
+function toggleFullscreen() {
+  const viewer = document.getElementById('viewer-panel');
+  const activo = viewer.classList.toggle('fullscreen');
+  // Atajos de teclado: Escape para salir
+  if (activo) {
+    document.addEventListener('keydown', _escapeFullscreen);
+  } else {
+    document.removeEventListener('keydown', _escapeFullscreen);
+  }
+}
+function _escapeFullscreen(e) {
+  if (e.key === 'Escape') toggleFullscreen();
+}
 
 // ─── Resizers ────────────────────────────────────────────────────────────────
 function initResizer(id, panelId, lado) {
