@@ -1,52 +1,43 @@
 """
-main.py - Entry point for DocManager
-Run with: python main.py
+main.py — GESDOC v2 con FastAPI
+Ejecutar: uvicorn main:app --reload --host 0.0.0.0 --port 8001
 """
-import sys
-import os
 
-# Ensure current directory is in path for relative imports
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import Qt, QCoreApplication
-from PyQt5.QtGui import QFont
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from fastapi.responses import FileResponse
 
 import database as db
+from backend.routers import documents, folders, comments, search, export, relations
 
 
-def main():
-    # ── MUST be set BEFORE QApplication is created ────────────────────────────
-    QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-    QCoreApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
-
-    # Required for QWebEngineView on Windows (shared OpenGL contexts)
-    QCoreApplication.setAttribute(Qt.AA_ShareOpenGLContexts, True)
-
-    app = QApplication(sys.argv)
-    app.setApplicationName("DocManager")
-    app.setApplicationVersion("1.0.0")
-    app.setStyle("Fusion")
-
-    font = QFont("Times New Roman", 14)
-    app.setFont(font)
-
-    # Initialize database
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     db.init_db()
     db.init_folders()
-    db.migrate_existing_to_vault()  # copy any external docs into vault
-    db.add_author_column()           # add author column if missing
-
-    # Apply dark theme
-    from utils.theme import apply_theme
-    apply_theme(app, dark=True)
-
-    from ui.main_window import MainWindow
-    window = MainWindow()
-    window.show()
-
-    sys.exit(app.exec_())
+    db.add_author_column()
+    db.add_parent_id_column()
+    db.add_metadatos_normativos()
+    db.init_relations()
+    db.ensure_vault()
+    yield
 
 
-if __name__ == "__main__":
-    main()
+app = FastAPI(
+    title="GESDOC",
+    description="Sistema de gestión documental con árbol de consulta y anotaciones",
+    version="2.1.0",
+    lifespan=lifespan,
+)
+
+app.include_router(documents.router,  prefix="/api/documents",  tags=["documentos"])
+app.include_router(folders.router,    prefix="/api/folders",    tags=["carpetas"])
+app.include_router(comments.router,   prefix="/api/comments",   tags=["comentarios"])
+app.include_router(search.router,     prefix="/api/search",     tags=["busqueda"])
+app.include_router(export.router,     prefix="/api/export",     tags=["exportar"])
+app.include_router(relations.router,  prefix="/api/relations",  tags=["relaciones"])
+
+
+@app.get("/", include_in_schema=False)
+def index():
+    return FileResponse("frontend/index.html")

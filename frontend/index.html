@@ -1,0 +1,2407 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GESDOC</title>
+<link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+:root {
+  --base:     #1e1e2e;
+  --mantle:   #181825;
+  --crust:    #11111b;
+  --surface0: #313244;
+  --surface1: #45475a;
+  --surface2: #585b70;
+  --overlay0: #6c7086;
+  --overlay1: #7f849c;
+  --text:     #cdd6f4;
+  --subtext0: #a6adc8;
+  --subtext1: #bac2de;
+  --blue:     #89b4fa;
+  --lavender: #b4befe;
+  --mauve:    #cba6f7;
+  --red:      #f38ba8;
+  --green:    #a6e3a1;
+  --yellow:   #f9e2af;
+  --orange:   #fab387;
+  --teal:     #94e2d5;
+  --sky:      #89dceb;
+  --pink:     #f5c2e7;
+  --font: 'Segoe UI', system-ui, sans-serif;
+  --font-serif: 'Times New Roman', Times, serif;
+  --r4:  4px;
+  --r6:  6px;
+  --r8:  8px;
+  --r12: 12px;
+  --shadow-sm: 0 1px 4px rgba(0,0,0,.35);
+  --shadow-md: 0 3px 12px rgba(0,0,0,.45);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,.55);
+  --trans: 160ms ease;
+}
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+body {
+  font-family: var(--font);
+  font-size: 10pt;
+  background: var(--base);
+  color: var(--text);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Scrollbars ── */
+::-webkit-scrollbar { width:5px; height:5px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--surface1); border-radius:10px; }
+::-webkit-scrollbar-thumb:hover { background:var(--surface2); }
+
+/* ── Top bar ── */
+#topbar {
+  background: linear-gradient(90deg, var(--crust) 0%, #16162a 100%);
+  border-bottom: 1px solid var(--surface0);
+  box-shadow: var(--shadow-sm);
+  padding: 0 14px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  z-index: 20;
+}
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14pt;
+  font-weight: 700;
+  letter-spacing: .5px;
+  background: linear-gradient(135deg, var(--blue), var(--mauve));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  user-select: none;
+  flex-shrink: 0;
+}
+.logo i { font-size: 18pt; -webkit-text-fill-color: var(--blue); }
+
+#search-wrap {
+  position: relative;
+  flex: 1;
+  max-width: 380px;
+}
+#search-wrap i {
+  position: absolute;
+  left: 9px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--overlay0);
+  font-size: 13pt;
+  pointer-events: none;
+}
+#search-global {
+  width: 100%;
+  padding: 6px 10px 6px 32px;
+  background: var(--surface0);
+  border: 1px solid var(--surface1);
+  border-radius: 20px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 9pt;
+  outline: none;
+  transition: border-color var(--trans), box-shadow var(--trans);
+}
+#search-global:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px rgba(137,180,250,.15);
+}
+#search-global::placeholder { color: var(--overlay0); }
+
+.topbar-right { margin-left: auto; display:flex; gap:8px; align-items:center; }
+#stats-badge {
+  font-size: 8pt;
+  color: var(--subtext0);
+  background: var(--surface0);
+  border: 1px solid var(--surface1);
+  padding: 4px 12px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--font);
+  font-size: 9pt;
+  padding: 5px 13px;
+  border: none;
+  border-radius: var(--r6);
+  cursor: pointer;
+  transition: all var(--trans);
+  white-space: nowrap;
+  font-weight: 500;
+}
+.btn i { font-size: 11pt; line-height:1; }
+.btn:active { transform: scale(.97); }
+.btn-primary {
+  background: linear-gradient(135deg, var(--blue), #6aa0f0);
+  color: var(--crust);
+  box-shadow: 0 2px 8px rgba(137,180,250,.3);
+}
+.btn-primary:hover { box-shadow: 0 4px 14px rgba(137,180,250,.4); filter:brightness(1.05); }
+.btn-ghost {
+  background: var(--surface0);
+  color: var(--subtext1);
+  border: 1px solid var(--surface1);
+}
+.btn-ghost:hover { background: var(--surface1); color:var(--text); }
+.btn-danger {
+  background: rgba(243,139,168,.15);
+  color: var(--red);
+  border: 1px solid rgba(243,139,168,.3);
+}
+.btn-danger:hover { background: rgba(243,139,168,.25); }
+.btn-sm { padding:3px 9px; font-size:8pt; }
+.btn-sm i { font-size:10pt; }
+.btn-icon {
+  padding: 4px 7px;
+  background: transparent;
+  color: var(--subtext0);
+  border: none;
+  cursor: pointer;
+  border-radius: var(--r4);
+  font-size: 10pt;
+  line-height: 1;
+  transition: all var(--trans);
+}
+.btn-icon:hover { background: var(--surface1); color:var(--text); }
+
+/* ── Layout ── */
+#layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── Sidebar ── */
+#sidebar {
+  width: 268px;
+  min-width: 180px;
+  background: linear-gradient(180deg, var(--mantle) 0%, #161622 100%);
+  border-right: 1px solid var(--surface0);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+#sidebar-header {
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--surface0);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,.02);
+}
+#sidebar-header .titulo {
+  font-size: 8pt;
+  font-weight: 700;
+  color: var(--subtext0);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  flex: 1;
+}
+#sidebar-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 4px;
+}
+
+/* Tree items */
+.tree-folder {
+  border-radius: var(--r6);
+  margin: 1px 0;
+  overflow: hidden;
+}
+.tree-folder-header {
+  display: flex;
+  align-items: center;
+  padding: 5px 8px;
+  cursor: pointer;
+  gap: 5px;
+  border-radius: var(--r6);
+  transition: background var(--trans);
+  user-select: none;
+  font-size: 9pt;
+}
+.tree-folder-header:hover { background: rgba(255,255,255,.05); }
+.tree-folder-header.active {
+  background: rgba(137,180,250,.12);
+  color: var(--blue);
+}
+.tree-folder-header .chevron {
+  font-size: 10pt;
+  color: var(--overlay0);
+  transition: transform var(--trans);
+  flex-shrink: 0;
+}
+.tree-folder-header .chevron.open { transform: rotate(90deg); }
+.tree-folder-header .f-icon {
+  font-size: 13pt;
+  flex-shrink: 0;
+}
+.tree-folder-header .f-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tree-folder-header .f-count {
+  font-size: 7.5pt;
+  background: var(--surface1);
+  border-radius: 10px;
+  padding: 1px 7px;
+  color: var(--overlay1);
+  flex-shrink: 0;
+}
+.tree-folder-header .f-actions { display:none; gap:2px; }
+.tree-folder-header:hover .f-actions { display:flex; }
+
+.tree-children { padding-left: 16px; }
+
+/* Doc cards */
+.doc-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--r6);
+  margin: 2px 0;
+  cursor: pointer;
+  transition: all var(--trans);
+  user-select: none;
+  border: 1px solid transparent;
+  position: relative;
+}
+.doc-card:hover {
+  background: rgba(255,255,255,.04);
+  border-color: var(--surface1);
+}
+.doc-card.active {
+  background: rgba(137,180,250,.1);
+  border-color: rgba(137,180,250,.25);
+}
+.doc-card .doc-fmt-dot {
+  width: 3px;
+  border-radius: 3px;
+  align-self: stretch;
+  flex-shrink: 0;
+}
+.doc-card .doc-icon { font-size: 14pt; flex-shrink: 0; line-height: 1; }
+.doc-card .doc-info { flex: 1; overflow: hidden; min-width: 0; }
+.doc-card .doc-name {
+  font-size: 8.5pt;
+  color: var(--subtext1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+.doc-card .doc-meta { display:flex; align-items:center; gap:5px; margin-top:2px; }
+.doc-card .doc-status-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.doc-card .doc-fmt-label {
+  font-size: 7pt;
+  color: var(--overlay0);
+  text-transform: uppercase;
+  letter-spacing:.5px;
+}
+
+/* Separador "sin carpeta" */
+.sidebar-section-label {
+  font-size: 7.5pt;
+  color: var(--overlay0);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 8px 10px 4px;
+  font-weight: 600;
+}
+
+/* ── Drop zone ── */
+#drop-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(137,180,250,.08);
+  border: 3px dashed var(--blue);
+  z-index: 50;
+  pointer-events: none;
+  border-radius: 0;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--blue);
+  font-size: 16pt;
+  font-weight: 600;
+}
+#drop-overlay.visible { display: flex; }
+#drop-overlay i { font-size: 48pt; opacity: .8; }
+
+/* ── Resizer ── */
+.resizer {
+  width: 4px;
+  background: transparent;
+  cursor: col-resize;
+  flex-shrink: 0;
+  transition: background 200ms;
+  position: relative;
+}
+.resizer::after {
+  content: '';
+  position: absolute;
+  inset: 0 -2px;
+}
+.resizer:hover, .resizer.dragging { background: var(--blue); }
+
+/* ── Viewer panel ── */
+#viewer-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--base);
+}
+#viewer-header {
+  background: linear-gradient(90deg, var(--mantle), #1c1c30);
+  border-bottom: 1px solid var(--surface0);
+  padding: 0 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 56px;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
+}
+#viewer-header.hidden { display: none; }
+.viewer-top-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#viewer-title {
+  font-size: 11pt;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#viewer-toolbar { display:flex; gap:4px; flex-shrink:0; }
+
+/* Breadcrumbs */
+#breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+.bc-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 8pt;
+  color: var(--subtext0);
+  cursor: pointer;
+  border-radius: var(--r4);
+  padding: 1px 5px;
+  transition: all var(--trans);
+}
+.bc-item:hover { color: var(--blue); background: rgba(137,180,250,.1); }
+.bc-item i { font-size: 9pt; }
+.bc-sep { color: var(--overlay0); font-size: 8pt; }
+.bc-current { color: var(--text); font-weight: 500; cursor: default; }
+.bc-current:hover { background:transparent; color:var(--text); }
+
+/* Status + tag chips */
+.chip {
+  display: inline-flex; align-items:center; gap:3px;
+  font-size: 7.5pt;
+  border-radius: 20px;
+  padding: 2px 9px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.chip-status-pr  { background: rgba(88,91,112,.3);  color:var(--subtext0); border:1px solid var(--surface1); }
+.chip-status-ep  { background: rgba(180,190,254,.1); color:var(--lavender); border:1px solid rgba(180,190,254,.3); }
+.chip-status-rev { background: rgba(166,227,161,.1); color:var(--green);    border:1px solid rgba(166,227,161,.3); }
+.chip-status-ap  { background: rgba(148,226,213,.1); color:var(--teal);     border:1px solid rgba(148,226,213,.3); }
+.chip-tag { background:rgba(203,166,247,.1); color:var(--mauve); border:1px solid rgba(203,166,247,.25); }
+
+/* Viewer body */
+#viewer-body {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+#viewer-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 14px;
+  color: var(--overlay0);
+}
+#viewer-placeholder i { font-size: 52pt; color:var(--surface1); }
+#viewer-placeholder p { font-size: 11pt; }
+#viewer-placeholder small { font-size: 8.5pt; color:var(--surface2); }
+
+#pdf-container {
+  display: none;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  background: #141420;
+  padding: 16px 24px;
+}
+#pdf-container canvas {
+  display: block;
+  margin: 0 auto 12px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.6);
+  border-radius: 3px;
+  max-width: 100%;
+}
+#html-content {
+  display: none;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+#html-content iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* ── Comments panel ── */
+#comments-panel {
+  width: 320px;
+  min-width: 250px;
+  background: linear-gradient(180deg, var(--mantle) 0%, #161622 100%);
+  border-left: 1px solid var(--surface0);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+#comments-header {
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--surface0);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,.02);
+}
+#comments-header .titulo {
+  font-size: 8pt;
+  font-weight: 700;
+  color: var(--subtext0);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  flex: 1;
+}
+#comment-count {
+  font-size: 7.5pt;
+  background: rgba(137,180,250,.15);
+  color: var(--blue);
+  border: 1px solid rgba(137,180,250,.25);
+  border-radius: 20px;
+  padding: 1px 8px;
+  font-weight: 600;
+}
+
+#comments-filters {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--surface0);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  background: rgba(0,0,0,.1);
+}
+#comments-filters select,
+#comments-filters input {
+  font-family: var(--font);
+  font-size: 8pt;
+  background: var(--surface0);
+  border: 1px solid var(--surface1);
+  color: var(--text);
+  border-radius: var(--r4);
+  padding: 3px 7px;
+  outline: none;
+  transition: border-color var(--trans);
+}
+#comments-filters select:focus,
+#comments-filters input:focus { border-color: var(--blue); }
+#comments-filters input { flex:1; min-width:80px; }
+
+#comments-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px;
+}
+.comments-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  gap: 8px;
+  color: var(--overlay0);
+}
+.comments-empty i { font-size: 28pt; color:var(--surface1); }
+
+/* Comment cards */
+.comment-card {
+  background: var(--surface0);
+  border-radius: var(--r8);
+  padding: 9px 10px;
+  margin-bottom: 6px;
+  border: 1px solid transparent;
+  border-left: 3px solid var(--surface1);
+  transition: all var(--trans);
+  font-size: 8.5pt;
+}
+.comment-card:hover {
+  border-color: var(--surface1);
+  border-left-color: inherit;
+  box-shadow: var(--shadow-sm);
+}
+.comment-card.prio-alta  { border-left-color: var(--red); }
+.comment-card.prio-media { border-left-color: var(--yellow); }
+.comment-card.prio-baja  { border-left-color: var(--green); }
+.comment-card.reply {
+  margin-left: 14px;
+  border-left-color: var(--overlay0);
+  background: rgba(255,255,255,.02);
+  font-size: 8pt;
+  position: relative;
+}
+.comment-card.reply::before {
+  content: '';
+  position: absolute;
+  left: -14px; top: 0; bottom: 0;
+  width: 1px;
+  background: var(--surface1);
+}
+
+.comment-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 5px;
+  flex-wrap: wrap;
+}
+.c-cat {
+  display: inline-flex; align-items:center; gap:3px;
+  font-size: 7pt;
+  background: var(--surface1);
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: var(--subtext0);
+  font-weight: 500;
+}
+.c-author { font-size: 8pt; color: var(--blue); font-weight: 600; }
+.c-status {
+  font-size: 7pt;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-weight: 600;
+}
+.c-status.abierto   { background:rgba(137,180,250,.15); color:var(--blue); }
+.c-status.resuelto  { background:rgba(166,227,161,.15); color:var(--green); }
+.c-status.pendiente { background:rgba(250,179,135,.15); color:var(--orange); }
+.c-date { font-size: 7.5pt; color:var(--overlay0); margin-left:auto; }
+.c-prio {
+  font-size: 7pt;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-weight: 600;
+}
+.c-prio.alta   { background:rgba(243,139,168,.15); color:var(--red); }
+.c-prio.media  { background:rgba(249,226,175,.15); color:var(--yellow); }
+.c-prio.baja   { background:rgba(166,227,161,.15); color:var(--green); }
+
+.c-highlighted {
+  background: rgba(203,166,247,.08);
+  border-left: 2px solid var(--mauve);
+  padding: 3px 8px;
+  font-size: 8pt;
+  color: var(--subtext1);
+  font-style: italic;
+  margin-bottom: 5px;
+  border-radius: 0 var(--r4) var(--r4) 0;
+}
+.c-location {
+  display: flex; align-items:center; gap:4px;
+  font-size: 7.5pt;
+  color: var(--teal);
+  margin-bottom: 4px;
+}
+.c-content { line-height: 1.6; color: var(--text); }
+.c-content mark {
+  background: rgba(249,226,175,.35);
+  color: var(--yellow);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+.comment-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 7px;
+  border-top: 1px solid rgba(255,255,255,.04);
+  padding-top: 5px;
+}
+
+/* Comment form */
+#comments-form {
+  padding: 8px;
+  border-top: 1px solid var(--surface0);
+  background: rgba(0,0,0,.2);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+#reply-banner {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  background: rgba(137,180,250,.1);
+  border: 1px solid rgba(137,180,250,.2);
+  border-radius: var(--r4);
+  padding: 4px 8px;
+  font-size: 8pt;
+  color: var(--blue);
+}
+#reply-banner i { font-size: 10pt; }
+#reply-banner button { margin-left:auto; }
+.form-row { display:flex; gap:5px; }
+#comments-form select,
+#comments-form input,
+#comments-form textarea {
+  font-family: var(--font);
+  font-size: 8pt;
+  background: var(--surface0);
+  border: 1px solid var(--surface1);
+  color: var(--text);
+  border-radius: var(--r4);
+  padding: 4px 7px;
+  outline: none;
+  width: 100%;
+  transition: border-color var(--trans);
+}
+#comments-form select:focus,
+#comments-form input:focus,
+#comments-form textarea:focus { border-color:var(--blue); }
+#comments-form textarea { resize:vertical; min-height:58px; max-height:120px; }
+
+/* ── Search results dropdown ── */
+#search-results {
+  position: absolute;
+  top: 46px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 480px;
+  background: var(--mantle);
+  border: 1px solid var(--surface1);
+  border-radius: 0 0 var(--r8) var(--r8);
+  box-shadow: var(--shadow-lg);
+  max-height: 55vh;
+  overflow-y: auto;
+  z-index: 60;
+  display: none;
+}
+#search-results.visible { display: block; }
+.sr-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--surface0);
+  transition: background var(--trans);
+}
+.sr-item:last-child { border-bottom: none; }
+.sr-item:hover { background: var(--surface0); }
+.sr-fmt-icon { font-size: 16pt; flex-shrink:0; margin-top:1px; }
+.sr-info { flex:1; min-width:0; }
+.sr-name { font-size: 9.5pt; color:var(--text); font-weight:500; }
+.sr-snippet { font-size: 8pt; color:var(--subtext0); margin-top:2px; }
+.sr-snippet b { color:var(--yellow); font-weight:600; }
+.sr-empty { padding:1.5rem; text-align:center; color:var(--overlay0); font-size:9pt; }
+
+/* ── Modals ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modal {
+  background: var(--mantle);
+  border: 1px solid var(--surface1);
+  border-radius: var(--r12);
+  padding: 22px 26px;
+  min-width: 340px;
+  max-width: 500px;
+  width: 92%;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.modal-head { display:flex; align-items:center; gap:8px; }
+.modal-head i { font-size:16pt; color:var(--blue); }
+.modal h3 { font-size:12pt; color:var(--text); }
+.modal label {
+  font-size: 8.5pt;
+  color: var(--subtext0);
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+.modal-field { display:flex; flex-direction:column; gap:2px; }
+.modal input, .modal select, .modal textarea {
+  width: 100%;
+  font-family: var(--font);
+  font-size: 9pt;
+  background: var(--surface0);
+  border: 1px solid var(--surface1);
+  color: var(--text);
+  border-radius: var(--r6);
+  padding: 7px 10px;
+  outline: none;
+  transition: border-color var(--trans), box-shadow var(--trans);
+}
+.modal input:focus, .modal select:focus, .modal textarea:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px rgba(137,180,250,.12);
+}
+.modal-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:4px; }
+
+/* Folder tree en modal */
+.modal-folder-tree {
+  background: var(--crust);
+  border: 1px solid var(--surface0);
+  border-radius: var(--r6);
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 6px;
+}
+.modal-folder-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: var(--r4);
+  cursor: pointer;
+  font-size: 9pt;
+  transition: background var(--trans);
+}
+.modal-folder-item:hover { background:var(--surface0); }
+.modal-folder-item.selected { background:rgba(137,180,250,.15); color:var(--blue); }
+.modal-folder-item i { font-size:12pt; }
+
+/* ── Tabs del panel derecho ── */
+.tabs-row { flex-shrink: 0; }
+.panel-tab {
+  flex: 1;
+  display: inline-flex; align-items:center; justify-content:center; gap:5px;
+  padding: 8px 10px;
+  font-family: var(--font); font-size: 8pt; font-weight: 600;
+  color: var(--subtext0);
+  background: transparent;
+  border: none; border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all var(--trans);
+}
+.panel-tab:hover { color: var(--text); background: rgba(255,255,255,.03); }
+.panel-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+.panel-tab i { font-size: 11pt; }
+
+/* ── Banner de vigencia ── */
+.vigencia-banner {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px;
+  font-size: 8.5pt; font-weight: 500;
+  flex-shrink: 0;
+  border-bottom: 1px solid;
+}
+.vigencia-banner i { font-size: 14pt; flex-shrink: 0; }
+.vigencia-banner strong { font-size: 9pt; }
+.vigencia-banner .banner-detail { color: inherit; opacity: .8; font-size: 8pt; }
+.vigencia-derogado   { background:rgba(243,139,168,.1); color:var(--red);     border-color:rgba(243,139,168,.3); }
+.vigencia-modificado { background:rgba(250,179,135,.1); color:var(--orange);  border-color:rgba(250,179,135,.3); }
+.vigencia-suspendido { background:rgba(249,226,175,.1); color:var(--yellow);  border-color:rgba(249,226,175,.3); }
+.vigencia-compilado  { background:rgba(137,180,250,.1); color:var(--blue);    border-color:rgba(137,180,250,.3); }
+
+/* ── Chips de vigencia ── */
+.vigencia-chip {
+  display: inline-flex; align-items:center; gap:5px;
+  font-size: 8pt; font-weight: 700;
+  border-radius: 20px; padding: 3px 10px;
+  border: 1px solid;
+}
+.vigencia-vigente      { background:rgba(166,227,161,.12); color:var(--green);   border-color:rgba(166,227,161,.3); }
+.vigencia-derogado     { background:rgba(243,139,168,.12); color:var(--red);     border-color:rgba(243,139,168,.3); }
+.vigencia-modificado   { background:rgba(250,179,135,.12); color:var(--orange);  border-color:rgba(250,179,135,.3); }
+.vigencia-suspendido   { background:rgba(249,226,175,.12); color:var(--yellow);  border-color:rgba(249,226,175,.3); }
+.vigencia-compilado    { background:rgba(137,180,250,.12); color:var(--blue);    border-color:rgba(137,180,250,.3); }
+.vigencia-por-confirmar{ background:rgba(88,91,112,.2);    color:var(--subtext0);border-color:var(--surface1); }
+
+/* ── Panel Norma ── */
+.norma-section {
+  background: var(--surface0);
+  border: 1px solid var(--surface1);
+  border-radius: var(--r8);
+  padding: 10px 12px;
+}
+.norma-section-title {
+  display: flex; align-items:center; gap:6px;
+  font-size: 8pt; font-weight: 700;
+  color: var(--subtext0); text-transform:uppercase; letter-spacing:.8px;
+  margin-bottom: 10px;
+}
+.norma-section-title i { font-size: 12pt; color: var(--mauve); }
+
+.meta-grid { display: flex; flex-direction: column; gap: 5px; }
+.meta-row {
+  display: flex; align-items: baseline; gap: 6px;
+  font-size: 8.5pt;
+}
+.meta-label {
+  display: flex; align-items: center; gap: 4px;
+  color: var(--subtext0); min-width: 80px; flex-shrink: 0;
+  font-size: 8pt;
+}
+.meta-label i { font-size: 10pt; }
+.meta-valor { color: var(--text); flex: 1; word-break: break-word; }
+
+/* ── Items de relación ── */
+.relacion-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 7px 8px;
+  background: var(--mantle);
+  border: 1px solid var(--surface0);
+  border-radius: var(--r6);
+  margin-bottom: 4px;
+  transition: all var(--trans);
+}
+.relacion-item:hover { border-color: var(--surface1); box-shadow: var(--shadow-sm); }
+.rel-icon-wrap {
+  font-size: 14pt; color: var(--subtext0);
+  flex-shrink: 0; padding-top: 1px;
+}
+.rel-info { flex: 1; cursor: pointer; min-width: 0; }
+.rel-info:hover .rel-nombre { color: var(--blue); }
+.rel-nombre { font-size: 8.5pt; font-weight: 500; color: var(--text); }
+.rel-tipo-norma {
+  font-size: 7.5pt; color: var(--mauve);
+  margin-top: 1px; font-weight: 600;
+}
+.rel-desc { font-size: 7.5pt; color: var(--subtext0); margin-top: 2px; }
+
+/* ── Toast ── */
+#toast-container {
+  position: fixed;
+  bottom: 18px; right: 18px;
+  display: flex; flex-direction: column; gap: 8px;
+  z-index: 200;
+  pointer-events: none;
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--surface0);
+  border: 1px solid var(--surface1);
+  border-left: 4px solid var(--blue);
+  color: var(--text);
+  font-size: 9pt;
+  padding: 9px 14px;
+  border-radius: var(--r8);
+  box-shadow: var(--shadow-md);
+  animation: toast-in .2s ease;
+  max-width: 320px;
+}
+.toast i { font-size: 13pt; flex-shrink:0; }
+.toast.ok    { border-left-color: var(--green); }
+.toast.ok i  { color: var(--green); }
+.toast.error { border-left-color: var(--red); }
+.toast.error i { color: var(--red); }
+.toast.info i  { color: var(--blue); }
+@keyframes toast-in { from{opacity:0;transform:translateX(16px)} to{opacity:1;transform:none} }
+</style>
+</head>
+<body>
+
+<!-- Drop overlay -->
+<div id="drop-overlay">
+  <i class='bx bx-upload'></i>
+  <span>Suelta los archivos para subir</span>
+</div>
+
+<!-- Top bar -->
+<div id="topbar">
+  <div class="logo"><i class='bx bxs-book-alt'></i> GESDOC</div>
+  <div id="search-wrap">
+    <i class='bx bx-search'></i>
+    <input id="search-global" type="text" placeholder="Buscar documentos…" autocomplete="off">
+  </div>
+  <div class="topbar-right">
+    <span id="stats-badge"><i class='bx bx-loader-circle' style="animation:spin 1s linear infinite;vertical-align:middle;"></i> Cargando</span>
+    <button class="btn btn-ghost btn-sm" onclick="abrirModalCarpeta(null)">
+      <i class='bx bx-folder-plus'></i> Carpeta
+    </button>
+    <button class="btn btn-primary btn-sm" onclick="abrirModalSubir()">
+      <i class='bx bx-upload'></i> Subir
+    </button>
+  </div>
+</div>
+
+<!-- Search results -->
+<div id="search-results"></div>
+
+<!-- Layout -->
+<div id="layout">
+
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <i class='bx bx-library' style="color:var(--blue);font-size:13pt;"></i>
+      <span class="titulo">Biblioteca</span>
+    </div>
+    <div id="sidebar-scroll"></div>
+  </div>
+
+  <div class="resizer" id="resizer-left"></div>
+
+  <!-- Viewer -->
+  <div id="viewer-panel">
+    <div id="viewer-header" class="hidden">
+      <div class="viewer-top-row">
+        <div id="viewer-title"></div>
+        <div id="viewer-meta-chips"></div>
+        <div id="viewer-toolbar"></div>
+      </div>
+      <div id="breadcrumbs"></div>
+    </div>
+    <div id="viewer-body">
+      <div id="viewer-placeholder">
+        <i class='bx bx-book-open'></i>
+        <p>Selecciona un documento</p>
+        <small>O arrastra archivos aquí para subirlos</small>
+      </div>
+      <div id="pdf-container"></div>
+      <div id="html-content"></div>
+    </div>
+  </div>
+
+  <div class="resizer" id="resizer-right"></div>
+
+  <!-- Comments -->
+  <div id="comments-panel">
+    <div id="comments-header">
+      <i class='bx bx-message-dots' style="color:var(--mauve);font-size:13pt;"></i>
+      <span class="titulo">Comentarios</span>
+      <span id="comment-count">0</span>
+      <button class="btn-icon" onclick="mostrarFormComentario()" title="Nuevo comentario">
+        <i class='bx bx-plus'></i>
+      </button>
+    </div>
+    <div id="comments-filters">
+      <select id="filter-cat" onchange="cargarComentarios()">
+        <option value="">Categoría</option>
+        <option>General</option><option>Importante</option>
+        <option>Pregunta</option><option>Corrección</option>
+        <option>Referencia</option><option>Tarea</option>
+      </select>
+      <select id="filter-prio" onchange="cargarComentarios()">
+        <option value="">Prioridad</option>
+        <option>Alta</option><option>Media</option><option>Baja</option>
+      </select>
+      <select id="filter-status" onchange="cargarComentarios()">
+        <option value="">Estado</option>
+        <option>Abierto</option><option>Resuelto</option><option>Pendiente</option>
+      </select>
+      <input id="filter-search" placeholder="Buscar en comentarios…" oninput="debounceComentarios()">
+    </div>
+    <div id="comments-list">
+      <div class="comments-empty">
+        <i class='bx bx-message-square-x'></i>
+        <span>Abre un documento para ver sus comentarios</span>
+      </div>
+    </div>
+    <div id="comments-form" style="display:none;">
+      <div id="reply-banner">
+        <i class='bx bx-reply'></i>
+        <span id="reply-banner-text">Respondiendo a comentario</span>
+        <button class="btn-icon btn-sm" onclick="cancelarRespuesta()"><i class='bx bx-x'></i></button>
+      </div>
+      <div class="form-row">
+        <select id="new-cat">
+          <option>General</option><option>Importante</option>
+          <option>Pregunta</option><option>Corrección</option>
+          <option>Referencia</option><option>Tarea</option>
+        </select>
+        <select id="new-prio">
+          <option>Media</option><option>Alta</option><option>Baja</option>
+        </select>
+      </div>
+      <input id="new-author" placeholder="Autor (opcional)">
+      <input id="new-location" placeholder="Ubicación — ej: Página 5, Art. 3">
+      <input id="new-highlighted" placeholder="Texto citado (pega el fragmento)">
+      <textarea id="new-content" placeholder="Escribe tu comentario…"></textarea>
+      <div class="form-row" style="justify-content:flex-end;">
+        <button class="btn btn-ghost btn-sm" onclick="ocultarFormComentario()">
+          <i class='bx bx-x'></i> Cancelar
+        </button>
+        <button class="btn btn-primary btn-sm" onclick="enviarComentario()">
+          <i class='bx bx-send'></i> Comentar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ─── Estado global ───────────────────────────────────────────────────────────
+const estado = {
+  docActual:       null,
+  carpetaActiva:   null,   // null=todos | -1=sin carpeta | n=id
+  respondiendo:    null,
+  terminoBusqueda: '',
+  arbolCarpetas:   [],
+};
+
+// ─── API helper ───────────────────────────────────────────────────────────────
+async function api(method, path, body = null, isForm = false) {
+  const opts = { method, headers: {} };
+  if (body && !isForm) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  } else if (body && isForm) {
+    opts.body = body;
+  }
+  const res = await fetch('/api' + path, opts);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || 'Error de servidor');
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+function toast(msg, tipo = 'info') {
+  const iconos = { ok:'bx-check-circle', error:'bx-error-circle', info:'bx-info-circle' };
+  const el = document.createElement('div');
+  el.className = 'toast ' + tipo;
+  el.innerHTML = `<i class='bx ${iconos[tipo] || iconos.info}'></i><span>${escapeHtml(msg)}</span>`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ─── Stats ────────────────────────────────────────────────────────────────────
+async function cargarStats() {
+  try {
+    const s = await api('GET', '/search/stats');
+    document.getElementById('stats-badge').innerHTML =
+      `<i class='bx bx-file' style="vertical-align:middle;margin-right:3px;"></i>${s.total_documentos} docs &nbsp;·&nbsp; <i class='bx bx-message-dots' style="vertical-align:middle;margin-right:3px;"></i>${s.total_comentarios}`;
+  } catch { /* silencioso */ }
+}
+
+// ─── Sidebar: árbol de carpetas ───────────────────────────────────────────────
+async function cargarArbol() {
+  try {
+    const [arbol, todos, sinCarpeta] = await Promise.all([
+      api('GET', '/folders/tree'),
+      api('GET', '/documents/'),
+      api('GET', '/documents/?sin_carpeta=true'),
+    ]);
+    estado.arbolCarpetas = arbol;
+    renderSidebar(arbol, todos, sinCarpeta);
+  } catch (e) {
+    toast('Error cargando biblioteca: ' + e.message, 'error');
+  }
+}
+
+function renderSidebar(arbol, todos, sinCarpeta) {
+  const scroll = document.getElementById('sidebar-scroll');
+  scroll.innerHTML = '';
+
+  // Todos los documentos
+  scroll.appendChild(crearItemTodos(todos.length));
+
+  // Árbol de carpetas
+  for (const c of arbol) {
+    scroll.appendChild(crearNodoCarpeta(c));
+  }
+
+  // Sin carpeta
+  if (sinCarpeta.length > 0) {
+    const sep = document.createElement('div');
+    sep.className = 'sidebar-section-label';
+    sep.textContent = 'Sin carpeta';
+    scroll.appendChild(sep);
+    for (const doc of sinCarpeta) {
+      scroll.appendChild(crearTarjetaDoc(doc));
+    }
+  }
+}
+
+function crearItemTodos(count) {
+  const div = document.createElement('div');
+  div.className = 'tree-folder-header' + (estado.carpetaActiva === null ? ' active' : '');
+  div.innerHTML = `
+    <i class='bx bx-grid-alt chevron' style="font-size:13pt;color:${estado.carpetaActiva===null?'var(--blue)':'var(--subtext0)'};margin-right:2px;"></i>
+    <span class="f-label">Todos los documentos</span>
+    <span class="f-count">${count}</span>
+  `;
+  div.onclick = () => seleccionarCarpeta(null, div);
+  return div;
+}
+
+function crearNodoCarpeta(carpeta) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'tree-folder';
+
+  const header = document.createElement('div');
+  header.className = 'tree-folder-header' + (estado.carpetaActiva === carpeta.id ? ' active' : '');
+  header.dataset.folderId = carpeta.id;
+
+  const tieneHijos = carpeta.children?.length > 0;
+  header.innerHTML = `
+    <i class='bx bx-chevron-right chevron ${tieneHijos ? '' : ''}'
+       style="visibility:${tieneHijos?'visible':'hidden'}"></i>
+    <i class='bx bxs-folder f-icon' style="color:${carpeta.color || 'var(--blue)'};"></i>
+    <span class="f-label">${escapeHtml(carpeta.name)}</span>
+    <span class="f-actions">
+      <button class="btn-icon btn-sm" title="Editar" onclick="event.stopPropagation();abrirModalCarpeta(${carpeta.id})"><i class='bx bx-edit'></i></button>
+      <button class="btn-icon btn-sm" title="Eliminar" onclick="event.stopPropagation();eliminarCarpeta(${carpeta.id})"><i class='bx bx-trash'></i></button>
+    </span>
+  `;
+
+  let expandido = false;
+  const childWrap = document.createElement('div');
+  childWrap.className = 'tree-children';
+  childWrap.style.display = 'none';
+
+  // Docs zone dentro de esta carpeta (carga lazy al expandir)
+  const docsZone = document.createElement('div');
+  docsZone.dataset.folderDocsId = carpeta.id;
+
+  if (tieneHijos) {
+    for (const hijo of carpeta.children) {
+      childWrap.appendChild(crearNodoCarpeta(hijo));
+    }
+  }
+  childWrap.appendChild(docsZone);
+
+  const chevronEl = header.querySelector('.chevron');
+  header.onclick = async (e) => {
+    if (e.target.closest('.f-actions')) return;
+    expandido = !expandido;
+    childWrap.style.display = expandido ? 'block' : 'none';
+    chevronEl.classList.toggle('open', expandido);
+    if (expandido && !docsZone.dataset.loaded) {
+      docsZone.dataset.loaded = '1';
+      const docs = await api('GET', `/documents/?folder_id=${carpeta.id}`).catch(() => []);
+      for (const doc of docs) docsZone.appendChild(crearTarjetaDoc(doc));
+    }
+    seleccionarCarpeta(carpeta.id, header);
+  };
+
+  wrapper.appendChild(header);
+  wrapper.appendChild(childWrap);
+  return wrapper;
+}
+
+async function seleccionarCarpeta(id, headerEl) {
+  estado.carpetaActiva = id;
+  document.querySelectorAll('.tree-folder-header').forEach(el => el.classList.remove('active'));
+  if (headerEl) headerEl.classList.add('active');
+}
+
+function crearTarjetaDoc(doc) {
+  const fmtColores = { pdf:'var(--red)', docx:'var(--blue)', doc:'var(--blue)', md:'var(--green)', markdown:'var(--green)', txt:'var(--subtext0)' };
+  const fmtIconos  = { pdf:'bxs-file-pdf', docx:'bxs-file-doc', doc:'bxs-file-doc', md:'bx-code-alt', markdown:'bx-code-alt', txt:'bx-file-blank' };
+  const statusColores = { 'Por revisar':'var(--subtext0)', 'En progreso':'var(--lavender)', 'Revisado':'var(--green)', 'Aprobado':'var(--teal)' };
+
+  const fmt    = doc.format?.toLowerCase() || 'txt';
+  const color  = fmtColores[fmt]  || 'var(--subtext0)';
+  const icono  = fmtIconos[fmt]   || 'bx-file-blank';
+  const dotClr = statusColores[doc.status] || 'var(--subtext0)';
+
+  const card = document.createElement('div');
+  card.className = 'doc-card' + (estado.docActual?.id === doc.id ? ' active' : '');
+  card.dataset.docId = doc.id;
+  card.innerHTML = `
+    <div class="doc-fmt-dot" style="background:${color};"></div>
+    <i class='bx ${icono} doc-icon' style="color:${color};"></i>
+    <div class="doc-info">
+      <div class="doc-name">${escapeHtml(doc.name)}</div>
+      <div class="doc-meta">
+        <div class="doc-status-dot" style="background:${dotClr};"></div>
+        <span class="doc-fmt-label">${fmt}</span>
+      </div>
+    </div>
+  `;
+  card.onclick = () => abrirDocumento(doc.id);
+  return card;
+}
+
+// ─── Visor ────────────────────────────────────────────────────────────────────
+async function abrirDocumento(docId, terminoResaltado = '') {
+  try {
+    const doc = await api('GET', `/documents/${docId}`);
+    estado.docActual = doc;
+    if (terminoResaltado) estado.terminoBusqueda = terminoResaltado;
+
+    document.querySelectorAll('.doc-card').forEach(el => {
+      el.classList.toggle('active', Number(el.dataset.docId) === docId);
+    });
+
+    await renderVisorHeader(doc);
+    renderVisor(doc);
+    renderTabs();
+    renderBannerVigencia(doc);
+    if (_pestañaActiva === 'norma') renderNormaPanel(doc);
+    mostrarFormComentario();
+    await cargarComentarios();
+    await cargarStats();
+  } catch (e) {
+    toast('Error abriendo documento: ' + e.message, 'error');
+  }
+}
+
+async function renderVisorHeader(doc) {
+  const header = document.getElementById('viewer-header');
+  header.classList.remove('hidden');
+  document.getElementById('viewer-title').textContent = doc.name;
+
+  // Meta chips
+  const statusMap = {
+    'Por revisar': 'pr', 'En progreso': 'ep', 'Revisado': 'rev', 'Aprobado': 'ap'
+  };
+  const sCls = statusMap[doc.status] || 'pr';
+  const tags = (doc.tags || '').split(',').filter(t => t.trim())
+    .map(t => `<span class="chip chip-tag"><i class='bx bx-tag'></i>${escapeHtml(t.trim())}</span>`).join('');
+  document.getElementById('viewer-meta-chips').innerHTML = `
+    ${tags}
+    <select id="doc-status-select" class="chip chip-status-${sCls}"
+            onchange="cambiarEstadoDoc(this.value)"
+            style="border:none;cursor:pointer;font-family:var(--font);font-size:7.5pt;font-weight:500;">
+      ${['Por revisar','En progreso','Revisado','Aprobado'].map(s =>
+        `<option ${s===doc.status?'selected':''}>${s}</option>`
+      ).join('')}
+    </select>
+  `;
+
+  // Toolbar
+  document.getElementById('viewer-toolbar').innerHTML = `
+    <button class="btn-icon" onclick="abrirModalEditarDoc()" title="Editar"><i class='bx bx-edit'></i></button>
+    <button class="btn-icon" onclick="abrirModalMoverDoc()" title="Mover a carpeta"><i class='bx bx-transfer'></i></button>
+    <a class="btn-icon" href="/api/documents/${doc.id}/file?descarga=true"
+       download="${escapeHtml(doc.name)}" title="Descargar"><i class='bx bx-download'></i></a>
+    <button class="btn-icon" onclick="exportarComentarios('excel')" title="Exportar Excel"><i class='bx bx-spreadsheet'></i></button>
+    <button class="btn-icon" onclick="exportarComentarios('csv')" title="Exportar CSV"><i class='bx bx-table'></i></button>
+    <button class="btn-icon" style="color:var(--red);" onclick="eliminarDoc()" title="Eliminar"><i class='bx bx-trash'></i></button>
+  `;
+
+  // Breadcrumbs
+  const carpetas = await api('GET', `/documents/${doc.id}/folders`).catch(() => []);
+  const bc = document.getElementById('breadcrumbs');
+  bc.innerHTML = '';
+  if (carpetas.length > 0) {
+    const inicio = document.createElement('span');
+    inicio.className = 'bc-item';
+    inicio.innerHTML = `<i class='bx bx-library'></i> Biblioteca`;
+    inicio.onclick = () => seleccionarCarpeta(null, document.querySelector('.tree-folder-header'));
+    bc.appendChild(inicio);
+
+    for (const c of carpetas) {
+      const sep = document.createElement('span');
+      sep.className = 'bc-sep';
+      sep.innerHTML = `<i class='bx bx-chevron-right'></i>`;
+      bc.appendChild(sep);
+      const item = document.createElement('span');
+      item.className = 'bc-item';
+      item.innerHTML = `<i class='bx bxs-folder' style="color:${c.color||'var(--blue)'};"></i>${escapeHtml(c.name)}`;
+      bc.appendChild(item);
+    }
+
+    const sep2 = document.createElement('span');
+    sep2.className = 'bc-sep';
+    sep2.innerHTML = `<i class='bx bx-chevron-right'></i>`;
+    bc.appendChild(sep2);
+    const curr = document.createElement('span');
+    curr.className = 'bc-item bc-current';
+    curr.textContent = doc.name;
+    bc.appendChild(curr);
+  }
+}
+
+async function renderVisor(doc) {
+  const ph  = document.getElementById('viewer-placeholder');
+  const pdf = document.getElementById('pdf-container');
+  const htm = document.getElementById('html-content');
+  ph.style.display = 'none';
+
+  if (doc.format === 'pdf') {
+    htm.style.display = 'none';
+    pdf.style.display = 'block';
+    renderPDF(`/api/documents/${doc.id}/file`, pdf);
+  } else {
+    pdf.style.display = 'none';
+    htm.style.display = 'block';
+    htm.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--subtext0);">Cargando…</div>';
+    fetch(`/api/documents/${doc.id}/content`)
+      .then(r => r.text())
+      .then(html => {
+        if (estado.terminoBusqueda) {
+          html = resaltarEnHTML(html, estado.terminoBusqueda);
+        }
+        const fr = document.createElement('iframe');
+        fr.style.cssText = 'width:100%;height:100%;border:none;';
+        fr.srcdoc = html;
+        htm.innerHTML = '';
+        htm.appendChild(fr);
+      })
+      .catch(() => {
+        htm.innerHTML = '<div style="padding:2rem;color:var(--red);text-align:center;">Error cargando contenido</div>';
+      });
+  }
+}
+
+async function renderPDF(url, container) {
+  container.innerHTML =
+    '<div style="padding:3rem;text-align:center;color:var(--subtext0);">Cargando PDF…</div>';
+  try {
+    const pdf  = await pdfjsLib.getDocument(url).promise;
+    container.innerHTML = '';
+    const ancho = container.clientWidth - 48;
+
+    for (let n = 1; n <= pdf.numPages; n++) {
+      const page     = await pdf.getPage(n);
+      const escala   = ancho / page.getViewport({ scale: 1 }).width;
+      const viewport = page.getViewport({ scale: Math.min(escala, 2) });
+      const canvas   = document.createElement('canvas');
+      canvas.width   = viewport.width;
+      canvas.height  = viewport.height;
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+      container.appendChild(canvas);
+    }
+  } catch (e) {
+    container.innerHTML =
+      `<div style="padding:2rem;color:var(--red);text-align:center;">Error: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function resaltarEnHTML(html, term) {
+  if (!term) return html;
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // Solo reemplaza fuera de etiquetas HTML
+  return html.replace(
+    new RegExp(`(?![^<]*>)(${escaped})`, 'gi'),
+    '<mark style="background:rgba(249,226,175,.4);color:#f9e2af;padding:0 2px;border-radius:2px;">$1</mark>'
+  );
+}
+
+async function cambiarEstadoDoc(nuevoEstado) {
+  if (!estado.docActual) return;
+  try {
+    await api('PUT', `/documents/${estado.docActual.id}`, { status: nuevoEstado });
+    estado.docActual.status = nuevoEstado;
+    toast('Estado actualizado', 'ok');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ─── Comentarios ─────────────────────────────────────────────────────────────
+let _tcmt = null;
+function debounceComentarios() {
+  clearTimeout(_tcmt);
+  _tcmt = setTimeout(cargarComentarios, 280);
+}
+
+async function cargarComentarios() {
+  if (!estado.docActual) return;
+  const cat    = document.getElementById('filter-cat').value;
+  const prio   = document.getElementById('filter-prio').value;
+  const status = document.getElementById('filter-status').value;
+  const search = document.getElementById('filter-search').value;
+  let url = `/comments/?document_id=${estado.docActual.id}`;
+  if (cat)    url += `&category=${encodeURIComponent(cat)}`;
+  if (prio)   url += `&priority=${encodeURIComponent(prio)}`;
+  if (status) url += `&status=${encodeURIComponent(status)}`;
+  if (search) url += `&search=${encodeURIComponent(search)}`;
+  try {
+    const lista = await api('GET', url);
+    document.getElementById('comment-count').textContent = contarTodos(lista);
+    renderComentarios(lista);
+  } catch (e) { toast('Error: ' + e.message, 'error'); }
+}
+
+function contarTodos(lista) {
+  return lista.reduce((a, c) => a + 1 + contarTodos(c.replies || []), 0);
+}
+
+function renderComentarios(lista) {
+  const div = document.getElementById('comments-list');
+  div.innerHTML = '';
+  if (!lista.length) {
+    div.innerHTML = `
+      <div class="comments-empty">
+        <i class='bx bx-comment-x'></i>
+        <span>Sin comentarios aún</span>
+      </div>`;
+    return;
+  }
+  lista.forEach(c => div.appendChild(crearTarjetaComentario(c, false)));
+}
+
+function crearTarjetaComentario(c, esReply) {
+  const prioCls = { Alta:'prio-alta', Media:'prio-media', Baja:'prio-baja' }[c.priority] || '';
+  const sCls    = c.status.toLowerCase();
+  const fecha   = (c.created_at || '').slice(0, 10);
+  const catIconos = { General:'bx-comment', Importante:'bxs-star', Pregunta:'bx-help-circle',
+    'Corrección':'bx-edit-alt', Referencia:'bx-link', Tarea:'bx-task' };
+  const catIcon = catIconos[c.category] || 'bx-comment';
+
+  const card = document.createElement('div');
+  card.className = `comment-card ${prioCls}${esReply ? ' reply' : ''}`;
+
+  card.innerHTML = `
+    <div class="comment-meta">
+      <span class="c-cat"><i class='bx ${catIcon}'></i> ${escapeHtml(c.category)}</span>
+      <span class="c-prio ${c.priority.toLowerCase()}">${c.priority}</span>
+      ${c.author ? `<span class="c-author"><i class='bx bx-user'></i> ${escapeHtml(c.author)}</span>` : ''}
+      <span class="c-status ${sCls}">${c.status}</span>
+      <span class="c-date">${fecha}</span>
+    </div>
+    ${c.location_info ? `<div class="c-location"><i class='bx bx-map-pin'></i>${escapeHtml(c.location_info)}</div>` : ''}
+    ${c.highlighted_text ? `<div class="c-highlighted">"${escapeHtml(c.highlighted_text)}"</div>` : ''}
+    <div class="c-content">${escapeHtml(c.content)}</div>
+    <div class="comment-actions">
+      <button class="btn btn-ghost btn-sm" onclick="responder(${c.id}, '${escapeHtml(c.author||'comentario')}')">
+        <i class='bx bx-reply'></i> Responder
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="ciclarEstadoComentario(${c.id}, '${c.status}')">
+        <i class='bx bx-transfer-alt'></i> ${c.status}
+      </button>
+      <button class="btn-icon btn-sm" onclick="eliminarComentario(${c.id})" title="Eliminar">
+        <i class='bx bx-trash'></i>
+      </button>
+    </div>
+  `;
+  if (c.replies?.length) {
+    c.replies.forEach(r => card.appendChild(crearTarjetaComentario(r, true)));
+  }
+  return card;
+}
+
+function mostrarFormComentario() {
+  document.getElementById('comments-form').style.display = 'flex';
+}
+function ocultarFormComentario() {
+  document.getElementById('comments-form').style.display = 'none';
+  cancelarRespuesta();
+}
+
+function responder(parentId, autor) {
+  estado.respondiendo = parentId;
+  const banner = document.getElementById('reply-banner');
+  banner.style.display = 'flex';
+  document.getElementById('reply-banner-text').textContent = `Respondiendo a ${autor}`;
+  document.getElementById('new-content').focus();
+}
+function cancelarRespuesta() {
+  estado.respondiendo = null;
+  document.getElementById('reply-banner').style.display = 'none';
+  document.getElementById('new-content').placeholder = 'Escribe tu comentario…';
+}
+
+async function enviarComentario() {
+  if (!estado.docActual) return;
+  const content = document.getElementById('new-content').value.trim();
+  if (!content) { toast('Escribe el contenido del comentario', 'error'); return; }
+  try {
+    await api('POST', '/comments/', {
+      document_id:      estado.docActual.id,
+      content,
+      category:         document.getElementById('new-cat').value,
+      priority:         document.getElementById('new-prio').value,
+      status:           'Abierto',
+      author:           document.getElementById('new-author').value.trim(),
+      location_info:    document.getElementById('new-location').value.trim(),
+      highlighted_text: document.getElementById('new-highlighted').value.trim(),
+      parent_id:        estado.respondiendo,
+    });
+    document.getElementById('new-content').value      = '';
+    document.getElementById('new-highlighted').value  = '';
+    document.getElementById('new-location').value     = '';
+    cancelarRespuesta();
+    await cargarComentarios();
+    await cargarStats();
+    toast('Comentario guardado', 'ok');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function eliminarComentario(id) {
+  if (!confirm('¿Eliminar este comentario?')) return;
+  try {
+    await api('DELETE', `/comments/${id}`);
+    await cargarComentarios();
+    await cargarStats();
+    toast('Comentario eliminado', 'ok');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function ciclarEstadoComentario(id, actual) {
+  const lista = ['Abierto', 'Resuelto', 'Pendiente'];
+  const sig = lista[(lista.indexOf(actual) + 1) % lista.length];
+  try {
+    await api('PUT', `/comments/${id}`, { status: sig });
+    await cargarComentarios();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function exportarComentarios(tipo) {
+  if (!estado.docActual) { toast('Abre un documento primero', 'error'); return; }
+  Object.assign(document.createElement('a'), {
+    href: `/api/export/${tipo}?doc_id=${estado.docActual.id}`
+  }).click();
+}
+
+// ─── Búsqueda global ─────────────────────────────────────────────────────────
+let _tsrch = null;
+document.getElementById('search-global').addEventListener('input', e => {
+  clearTimeout(_tsrch);
+  const q = e.target.value.trim();
+  if (!q) { cerrarBusqueda(); return; }
+  _tsrch = setTimeout(() => ejecutarBusqueda(q), 280);
+});
+document.getElementById('search-global').addEventListener('keydown', e => {
+  if (e.key === 'Escape') { cerrarBusqueda(); e.target.value = ''; }
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('#search-wrap') && !e.target.closest('#search-results')) cerrarBusqueda();
+});
+
+async function ejecutarBusqueda(q) {
+  try {
+    const res = await api('GET', `/search/?q=${encodeURIComponent(q)}`);
+    renderBusqueda(res, q);
+  } catch { cerrarBusqueda(); }
+}
+
+function renderBusqueda(resultados, q) {
+  const div = document.getElementById('search-results');
+  div.classList.add('visible');
+  if (!resultados.length) {
+    div.innerHTML = `<div class="sr-empty">Sin resultados para "${escapeHtml(q)}"</div>`;
+    return;
+  }
+  const fmtIconos = { pdf:'bxs-file-pdf', docx:'bxs-file-doc', doc:'bxs-file-doc',
+    md:'bx-code-alt', markdown:'bx-code-alt', txt:'bx-file-blank' };
+  const fmtColores = { pdf:'var(--red)', docx:'var(--blue)', doc:'var(--blue)',
+    md:'var(--green)', txt:'var(--subtext0)' };
+  div.innerHTML = resultados.slice(0, 10).map(r => {
+    const fmt = r.format?.toLowerCase() || 'txt';
+    return `
+      <div class="sr-item" onclick="abrirDesdeBusqueda(${r.id}, '${escapeHtml(q)}')">
+        <i class='bx ${fmtIconos[fmt]||'bx-file-blank'} sr-fmt-icon'
+           style="color:${fmtColores[fmt]||'var(--subtext0)'};"></i>
+        <div class="sr-info">
+          <div class="sr-name">${escapeHtml(r.name)}</div>
+          ${r.snippet ? `<div class="sr-snippet">${r.snippet}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function cerrarBusqueda() {
+  document.getElementById('search-results').classList.remove('visible');
+}
+
+async function abrirDesdeBusqueda(docId, termino) {
+  cerrarBusqueda();
+  document.getElementById('search-global').value = '';
+  estado.terminoBusqueda = termino;
+  await abrirDocumento(docId, termino);
+}
+
+// ─── Drag & Drop para subir archivos ─────────────────────────────────────────
+let _dragCount = 0;
+const EXTS_VALIDOS = new Set(['pdf','docx','doc','md','txt','markdown']);
+
+document.addEventListener('dragenter', e => {
+  if (!e.dataTransfer.types.includes('Files')) return;
+  _dragCount++;
+  document.getElementById('drop-overlay').classList.add('visible');
+});
+document.addEventListener('dragleave', () => {
+  _dragCount--;
+  if (_dragCount <= 0) {
+    _dragCount = 0;
+    document.getElementById('drop-overlay').classList.remove('visible');
+  }
+});
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  _dragCount = 0;
+  document.getElementById('drop-overlay').classList.remove('visible');
+  const archivos = [...e.dataTransfer.files].filter(f => {
+    const ext = f.name.split('.').pop().toLowerCase();
+    return EXTS_VALIDOS.has(ext);
+  });
+  if (archivos.length) abrirModalSubirConArchivos(archivos);
+  else toast('Formato no soportado. Usa PDF, DOCX, MD o TXT.', 'error');
+});
+
+// ─── Modal: nueva / editar carpeta ───────────────────────────────────────────
+function abrirModalCarpeta(carpetaId) {
+  const overlay = crearOverlay();
+  overlay.innerHTML = `
+    <div class="modal">
+      <div class="modal-head">
+        <i class='bx bx-folder-plus'></i>
+        <h3>${carpetaId ? 'Editar Carpeta' : 'Nueva Carpeta'}</h3>
+      </div>
+      <div class="modal-field">
+        <label>Nombre</label>
+        <input id="m-folder-name" placeholder="Nombre de la carpeta">
+      </div>
+      <div style="display:flex;gap:10px;">
+        <div class="modal-field" style="flex:1;">
+          <label>Icono</label>
+          <input id="m-folder-icon" value="📁" style="font-size:14pt;">
+        </div>
+        <div class="modal-field">
+          <label>Color</label>
+          <input id="m-folder-color" type="color" value="#89b4fa" style="height:36px;padding:2px;cursor:pointer;">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="cerrarModal()"><i class='bx bx-x'></i> Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarCarpeta(${carpetaId})"><i class='bx bx-check'></i> Guardar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.getElementById('m-folder-name').focus();
+}
+
+async function guardarCarpeta(carpetaId) {
+  const name  = document.getElementById('m-folder-name').value.trim();
+  const icon  = document.getElementById('m-folder-icon').value.trim();
+  const color = document.getElementById('m-folder-color').value;
+  if (!name) { toast('Ingresa un nombre', 'error'); return; }
+  try {
+    if (carpetaId) {
+      await api('PUT', `/folders/${carpetaId}`, { name, icon, color });
+      toast('Carpeta actualizada', 'ok');
+    } else {
+      await api('POST', '/folders/', { name, icon, color, parent_id: null });
+      toast('Carpeta creada', 'ok');
+    }
+    cerrarModal();
+    await cargarArbol();
+    await cargarStats();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function eliminarCarpeta(id) {
+  if (!confirm('¿Eliminar esta carpeta? Los documentos quedarán sin carpeta.')) return;
+  try {
+    await api('DELETE', `/folders/${id}`);
+    toast('Carpeta eliminada', 'ok');
+    await cargarArbol();
+    await cargarStats();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ─── Modal: subir documento ───────────────────────────────────────────────────
+async function abrirModalSubir() {
+  abrirModalSubirConArchivos([]);
+}
+
+async function abrirModalSubirConArchivos(archivos) {
+  const carpetas = await api('GET', '/folders/').catch(() => []);
+  const overlay  = crearOverlay();
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:520px;">
+      <div class="modal-head">
+        <i class='bx bx-upload'></i>
+        <h3>Subir Documento</h3>
+      </div>
+      <div class="modal-field">
+        <label>Archivo (PDF, DOCX, MD, TXT)</label>
+        <input type="file" id="m-file" accept=".pdf,.docx,.doc,.md,.txt,.markdown">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div class="modal-field">
+          <label>Carpeta destino</label>
+          <select id="m-folder-dest">
+            <option value="">Sin carpeta</option>
+            ${carpetas.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>Estado de revisión</label>
+          <select id="m-status">
+            <option>Por revisar</option><option>En progreso</option>
+            <option>Revisado</option><option>Aprobado</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-field">
+        <label>Tags (separados por coma)</label>
+        <input id="m-tags" placeholder="norma, eaab, circular…">
+      </div>
+      ${htmlSeccionMetadatos()}
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="cerrarModal()"><i class='bx bx-x'></i> Cancelar</button>
+        <button class="btn btn-primary" onclick="subirDocumento()"><i class='bx bx-upload'></i> Subir</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  if (archivos.length) {
+    const dt = new DataTransfer();
+    archivos.forEach(f => dt.items.add(f));
+    document.getElementById('m-file').files = dt.files;
+  }
+}
+
+async function subirDocumento() {
+  const fi = document.getElementById('m-file');
+  if (!fi.files.length) { toast('Selecciona un archivo', 'error'); return; }
+  const fd = new FormData();
+  fd.append('file', fi.files[0]);
+  const fid = document.getElementById('m-folder-dest').value;
+  if (fid) fd.append('folder_id', fid);
+  fd.append('status', document.getElementById('m-status').value);
+  fd.append('tags',   document.getElementById('m-tags').value);
+  const meta = leerMetadatosModal();
+  Object.entries(meta).forEach(([k, v]) => fd.append(k, v));
+  try {
+    const doc = await api('POST', '/documents/', fd, true);
+    toast('Documento subido: ' + doc.name, 'ok');
+    cerrarModal();
+    await cargarArbol();
+    await cargarStats();
+    await abrirDocumento(doc.id);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ─── Modal: mover documento ───────────────────────────────────────────────────
+async function abrirModalMoverDoc() {
+  if (!estado.docActual) return;
+  const [carpetas, actuales] = await Promise.all([
+    api('GET', '/folders/'),
+    api('GET', `/documents/${estado.docActual.id}/folders`).catch(() => []),
+  ]);
+  const idsActuales = new Set(actuales.map(c => c.id));
+
+  const overlay = crearOverlay();
+  overlay.innerHTML = `
+    <div class="modal">
+      <div class="modal-head">
+        <i class='bx bx-transfer'></i>
+        <h3>Mover a Carpeta</h3>
+      </div>
+      <p style="font-size:8.5pt;color:var(--subtext0);">
+        Selecciona la carpeta destino. El documento se quitará de las carpetas actuales.
+      </p>
+      <div class="modal-field">
+        <label>Carpeta destino</label>
+        <div class="modal-folder-tree" id="modal-folder-list">
+          <div class="modal-folder-item ${idsActuales.size===0?'selected':''}" data-folder-id="" onclick="selFolderMover(this)">
+            <i class='bx bx-folder-open' style="color:var(--subtext0);"></i>
+            <span>Sin carpeta</span>
+          </div>
+          ${carpetas.map(c => `
+            <div class="modal-folder-item ${idsActuales.has(c.id)?'selected':''}"
+                 data-folder-id="${c.id}" onclick="selFolderMover(this)">
+              <i class='bx bxs-folder' style="color:${c.color||'var(--blue)'};"></i>
+              <span>${escapeHtml(c.name)}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="cerrarModal()"><i class='bx bx-x'></i> Cancelar</button>
+        <button class="btn btn-primary" onclick="ejecutarMoverDoc(${JSON.stringify([...idsActuales])})">
+          <i class='bx bx-check'></i> Mover
+        </button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function selFolderMover(el) {
+  document.querySelectorAll('.modal-folder-item').forEach(i => i.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+async function ejecutarMoverDoc(idsActuales) {
+  const sel = document.querySelector('.modal-folder-item.selected');
+  if (!sel) { toast('Selecciona una carpeta', 'error'); return; }
+  const nuevoFolderId = sel.dataset.folderId ? Number(sel.dataset.folderId) : null;
+  const docId = estado.docActual.id;
+  try {
+    // Quitar de carpetas actuales
+    for (const oldId of idsActuales) {
+      await api('DELETE', `/folders/${oldId}/documents/${docId}`);
+    }
+    // Asignar a nueva carpeta
+    if (nuevoFolderId) {
+      await api('POST', `/folders/${nuevoFolderId}/documents/${docId}`);
+    }
+    toast('Documento movido', 'ok');
+    cerrarModal();
+    await cargarArbol();
+    await renderVisorHeader(estado.docActual);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ─── Modal: editar documento ──────────────────────────────────────────────────
+function abrirModalEditarDoc() {
+  if (!estado.docActual) return;
+  const doc = estado.docActual;
+  const overlay = crearOverlay();
+  overlay.innerHTML = `
+    <div class="modal">
+      <div class="modal-head">
+        <i class='bx bx-edit'></i>
+        <h3>Editar Documento</h3>
+      </div>
+      <div class="modal-field">
+        <label>Nombre</label>
+        <input id="m-doc-name" value="${escapeHtml(doc.name)}">
+      </div>
+      <div class="modal-field">
+        <label>Tags (separados por coma)</label>
+        <input id="m-doc-tags" value="${escapeHtml(doc.tags || '')}">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="cerrarModal()"><i class='bx bx-x'></i> Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarEdicionDoc()"><i class='bx bx-check'></i> Guardar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.getElementById('m-doc-name').focus();
+}
+
+async function guardarEdicionDoc() {
+  const name = document.getElementById('m-doc-name').value.trim();
+  const tags = document.getElementById('m-doc-tags').value.trim();
+  if (!name) { toast('El nombre no puede estar vacío', 'error'); return; }
+  try {
+    const doc = await api('PUT', `/documents/${estado.docActual.id}`, { name, tags });
+    estado.docActual = doc;
+    document.getElementById('viewer-title').textContent = doc.name;
+    toast('Documento actualizado', 'ok');
+    cerrarModal();
+    await cargarArbol();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function eliminarDoc() {
+  if (!estado.docActual || !confirm(`¿Eliminar "${estado.docActual.name}"?`)) return;
+  try {
+    await api('DELETE', `/documents/${estado.docActual.id}`);
+    estado.docActual = null;
+    estado.terminoBusqueda = '';
+    document.getElementById('viewer-header').classList.add('hidden');
+    document.getElementById('pdf-container').style.display = 'none';
+    document.getElementById('html-content').style.display = 'none';
+    document.getElementById('viewer-placeholder').style.display = 'flex';
+    document.getElementById('comments-form').style.display = 'none';
+    document.getElementById('comments-list').innerHTML =
+      `<div class="comments-empty"><i class='bx bx-message-square-x'></i><span>Abre un documento para ver sus comentarios</span></div>`;
+    toast('Documento eliminado', 'ok');
+    await cargarArbol();
+    await cargarStats();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ─── Atajos de teclado ────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+  if ((e.ctrlKey || e.metaKey) && e.key === 'u') { e.preventDefault(); abrirModalSubir(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'f') { e.preventDefault(); document.getElementById('search-global').focus(); }
+  if (e.key === 'Escape') { cerrarModal(); cerrarBusqueda(); }
+});
+
+// ─── Resizers ────────────────────────────────────────────────────────────────
+function initResizer(id, panelId, lado) {
+  const resizer = document.getElementById(id);
+  const panel   = document.getElementById(panelId);
+  let sx, sw;
+  resizer.addEventListener('mousedown', e => {
+    sx = e.clientX; sw = panel.getBoundingClientRect().width;
+    resizer.classList.add('dragging');
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+  });
+  document.addEventListener('mousemove', e => {
+    if (!resizer.classList.contains('dragging')) return;
+    const delta = lado === 'left' ? e.clientX - sx : sx - e.clientX;
+    panel.style.width = Math.max(160, Math.min(500, sw + delta)) + 'px';
+  });
+  document.addEventListener('mouseup', () => {
+    resizer.classList.remove('dragging');
+    document.body.style.userSelect = '';
+    document.body.style.cursor = '';
+  });
+}
+
+// ─── Utilidades ──────────────────────────────────────────────────────────────
+function crearOverlay() {
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay';
+  ov.onclick = e => { if (e.target === ov) cerrarModal(); };
+  return ov;
+}
+function cerrarModal() {
+  document.querySelectorAll('.modal-overlay').forEach(el => el.remove());
+}
+function escapeHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Constantes normativas (cargadas del backend) ────────────────────────────
+const CONSTANTES = { tipos_norma:[], vigencia_estados:[], tipos_relacion:[] };
+
+async function cargarConstantes() {
+  try {
+    const c = await api('GET', '/relations/constantes');
+    Object.assign(CONSTANTES, c);
+  } catch { /* usa defaults vacíos */ }
+}
+
+// ─── Metadatos normativos: helpers ───────────────────────────────────────────
+function opcionesSelect(lista, seleccionado = '') {
+  return lista.map(v =>
+    `<option value="${escapeHtml(v)}" ${v === seleccionado ? 'selected' : ''}>${escapeHtml(v)}</option>`
+  ).join('');
+}
+
+function vigenciaCls(estado) {
+  return { Vigente:'vigente', Derogado:'derogado', Modificado:'modificado',
+           Suspendido:'suspendido', Compilado:'compilado' }[estado] || 'por-confirmar';
+}
+
+// ─── Sección de metadatos normativos para modales ────────────────────────────
+function htmlSeccionMetadatos(doc = {}) {
+  const tn = doc.tipo_norma       || '';
+  const nn = doc.numero_norma     || '';
+  const ee = doc.entidad_emisora  || '';
+  const fe = doc.fecha_expedicion || '';
+  const fv = doc.fecha_vigencia   || '';
+  const ve = doc.vigencia_estado  || 'Por confirmar';
+
+  return `
+    <div style="border-top:1px solid var(--surface1);padding-top:10px;margin-top:2px;">
+      <div style="font-size:8pt;font-weight:700;color:var(--subtext0);text-transform:uppercase;
+                  letter-spacing:1px;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+        <i class='bx bx-file-find' style="color:var(--mauve);font-size:11pt;"></i>
+        Metadatos normativos
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div class="modal-field">
+          <label>Tipo de norma</label>
+          <select id="m-tipo-norma">
+            <option value="">— Sin tipo —</option>
+            ${opcionesSelect(CONSTANTES.tipos_norma, tn)}
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>Número / Identificador</label>
+          <input id="m-numero-norma" placeholder="ej. 0537, 142, 001-2025" value="${escapeHtml(nn)}">
+        </div>
+      </div>
+      <div class="modal-field">
+        <label>Entidad emisora</label>
+        <input id="m-entidad-emisora" placeholder="ej. EAAB-ESP, MEFCL, Min. Vivienda" value="${escapeHtml(ee)}"
+               list="entidades-list">
+        <datalist id="entidades-list">
+          <option>EAAB-ESP</option><option>MEFCL</option>
+          <option>Min. Vivienda</option><option>Min. Ambiente</option>
+          <option>Superservicios</option><option>CRA</option>
+          <option>SSPD</option><option>Alcaldía de Bogotá</option>
+        </datalist>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div class="modal-field">
+          <label>Fecha de expedición</label>
+          <input id="m-fecha-expedicion" type="date" value="${escapeHtml(fe)}">
+        </div>
+        <div class="modal-field">
+          <label>Fecha de vigencia</label>
+          <input id="m-fecha-vigencia" type="date" value="${escapeHtml(fv)}">
+        </div>
+      </div>
+      <div class="modal-field">
+        <label>Estado de vigencia</label>
+        <select id="m-vigencia-estado">
+          ${opcionesSelect(CONSTANTES.vigencia_estados, ve)}
+        </select>
+      </div>
+    </div>`;
+}
+
+function leerMetadatosModal() {
+  return {
+    tipo_norma:       document.getElementById('m-tipo-norma')?.value       || '',
+    numero_norma:     document.getElementById('m-numero-norma')?.value     || '',
+    entidad_emisora:  document.getElementById('m-entidad-emisora')?.value  || '',
+    fecha_expedicion: document.getElementById('m-fecha-expedicion')?.value || '',
+    fecha_vigencia:   document.getElementById('m-fecha-vigencia')?.value   || '',
+    vigencia_estado:  document.getElementById('m-vigencia-estado')?.value  || 'Por confirmar',
+  };
+}
+
+// ─── Banner de vigencia en el visor ──────────────────────────────────────────
+function renderBannerVigencia(doc) {
+  const existing = document.getElementById('vigencia-banner');
+  if (existing) existing.remove();
+
+  const ve = doc.vigencia_estado || 'Por confirmar';
+  if (ve === 'Vigente' || ve === 'Por confirmar') return;
+
+  const configs = {
+    Derogado:   { cls:'derogado',   icon:'bx-x-circle',       msg:'NORMA DEROGADA' },
+    Modificado: { cls:'modificado', icon:'bx-edit-alt',        msg:'NORMA MODIFICADA — puede no estar actualizada' },
+    Suspendido: { cls:'suspendido', icon:'bx-pause-circle',    msg:'NORMA SUSPENDIDA temporalmente' },
+    Compilado:  { cls:'compilado',  icon:'bx-book-bookmark',   msg:'NORMA COMPILADA en otro instrumento' },
+  };
+  const cfg = configs[ve];
+  if (!cfg) return;
+
+  const banner = document.createElement('div');
+  banner.id = 'vigencia-banner';
+  banner.className = `vigencia-banner vigencia-${cfg.cls}`;
+  banner.innerHTML = `
+    <i class='bx ${cfg.icon}'></i>
+    <strong>${cfg.msg}</strong>
+    <span class="banner-detail">Estado: <b>${ve}</b>
+      ${doc.fecha_derogacion ? ` · desde ${doc.fecha_derogacion}` : ''}
+    </span>
+    <button class="btn-icon btn-sm" style="margin-left:auto;"
+            onclick="mostrarPestañaNorma()" title="Ver relaciones">
+      <i class='bx bx-link-external'></i> Ver relaciones
+    </button>
+  `;
+  document.getElementById('viewer-body').insertAdjacentElement('beforebegin', banner);
+}
+
+// ─── Pestaña Norma en el panel derecho ───────────────────────────────────────
+let _pestañaActiva = 'comentarios';
+
+function renderTabs() {
+  const header = document.getElementById('comments-header');
+  if (!header.querySelector('.tabs-row')) {
+    const tabRow = document.createElement('div');
+    tabRow.className = 'tabs-row';
+    tabRow.style.cssText = 'display:flex;gap:0;border-bottom:1px solid var(--surface0);margin:-8px -12px 0;';
+    tabRow.innerHTML = `
+      <button id="tab-btn-comentarios" class="panel-tab active"
+              onclick="cambiarPestaña('comentarios')">
+        <i class='bx bx-message-dots'></i> Comentarios
+      </button>
+      <button id="tab-btn-norma" class="panel-tab"
+              onclick="cambiarPestaña('norma')">
+        <i class='bx bx-file-find'></i> Norma
+      </button>
+    `;
+    header.appendChild(tabRow);
+  }
+}
+
+function cambiarPestaña(tab) {
+  _pestañaActiva = tab;
+  document.querySelectorAll('.panel-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById(`tab-btn-${tab}`)?.classList.add('active');
+
+  const showCmt  = tab === 'comentarios';
+  document.getElementById('comments-filters').style.display = showCmt ? '' : 'none';
+  document.getElementById('comments-list').style.display    = showCmt ? '' : 'none';
+  document.getElementById('comments-form').style.display    = showCmt && estado.docActual ? 'flex' : 'none';
+
+  const normaPanel = document.getElementById('norma-panel');
+  if (normaPanel) normaPanel.style.display = showCmt ? 'none' : 'flex';
+
+  if (tab === 'norma' && estado.docActual) renderNormaPanel(estado.docActual);
+}
+
+function mostrarPestañaNorma() {
+  renderTabs();
+  cambiarPestaña('norma');
+}
+
+async function renderNormaPanel(doc) {
+  let panel = document.getElementById('norma-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'norma-panel';
+    panel.style.cssText = 'flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:12px;';
+    document.getElementById('comments-panel').insertBefore(
+      panel,
+      document.getElementById('comments-form')
+    );
+  }
+  panel.style.display = 'flex';
+  panel.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--subtext0);">Cargando…</div>';
+
+  const [relaciones] = await Promise.all([
+    api('GET', `/relations/document/${doc.id}`).catch(() => []),
+  ]);
+
+  const ve  = doc.vigencia_estado || 'Por confirmar';
+  const vcl = vigenciaCls(ve);
+
+  panel.innerHTML = `
+    <!-- ── Metadatos ── -->
+    <div class="norma-section">
+      <div class="norma-section-title">
+        <i class='bx bx-detail'></i> Identificación
+        <button class="btn-icon btn-sm" onclick="abrirModalEditarMetadatos()"
+                title="Editar metadatos" style="margin-left:auto;">
+          <i class='bx bx-edit'></i>
+        </button>
+      </div>
+      <div class="meta-grid">
+        ${filaMetadato('bx-category', 'Tipo',     doc.tipo_norma     || '—')}
+        ${filaMetadato('bx-hash',     'Número',   doc.numero_norma   || '—')}
+        ${filaMetadato('bx-building', 'Entidad',  doc.entidad_emisora|| '—')}
+        ${filaMetadato('bx-calendar', 'Expedición', doc.fecha_expedicion || '—')}
+        ${filaMetadato('bx-calendar-check','Vigencia', doc.fecha_vigencia || '—')}
+        ${doc.fecha_derogacion ? filaMetadato('bx-calendar-x','Derogación', doc.fecha_derogacion) : ''}
+      </div>
+      <div style="margin-top:8px;">
+        <span class="vigencia-chip vigencia-${vcl}">
+          <i class='bx ${iconVigencia(ve)}'></i> ${ve}
+        </span>
+      </div>
+    </div>
+
+    <!-- ── Relaciones ── -->
+    <div class="norma-section">
+      <div class="norma-section-title">
+        <i class='bx bx-git-merge'></i> Relaciones normativas
+        <span class="f-count" style="margin-left:4px;">${relaciones.length}</span>
+        <button class="btn btn-primary btn-sm" style="margin-left:auto;"
+                onclick="abrirModalAgregarRelacion()">
+          <i class='bx bx-plus'></i> Agregar
+        </button>
+      </div>
+      ${relaciones.length === 0
+        ? `<div style="text-align:center;padding:1rem;color:var(--overlay0);font-size:8.5pt;">
+             <i class='bx bx-link' style="font-size:20pt;display:block;margin-bottom:6px;"></i>
+             Sin relaciones registradas
+           </div>`
+        : renderListaRelaciones(relaciones, doc.id)
+      }
+    </div>
+  `;
+}
+
+function filaMetadato(icon, label, valor) {
+  return `
+    <div class="meta-row">
+      <span class="meta-label"><i class='bx ${icon}'></i> ${label}</span>
+      <span class="meta-valor">${escapeHtml(valor)}</span>
+    </div>`;
+}
+
+function iconVigencia(ve) {
+  return { Vigente:'bx-check-circle', Derogado:'bx-x-circle', Modificado:'bx-edit-alt',
+           Suspendido:'bx-pause-circle', Compilado:'bx-book-bookmark',
+           'Por confirmar':'bx-question-mark' }[ve] || 'bx-question-mark';
+}
+
+function renderListaRelaciones(relaciones, docId) {
+  const grupos = {};
+  for (const r of relaciones) {
+    const esOrigen  = r.doc_origen_id  === docId;
+    const tipoLabel = esOrigen
+      ? r.tipo_relacion
+      : `Es ${r.tipo_relacion.toLowerCase()} por`;
+    if (!grupos[tipoLabel]) grupos[tipoLabel] = [];
+    grupos[tipoLabel].push({ ...r, esOrigen });
+  }
+
+  return Object.entries(grupos).map(([tipo, items]) => `
+    <div style="margin-bottom:8px;">
+      <div style="font-size:7.5pt;font-weight:700;color:var(--subtext0);
+                  text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;">
+        ${escapeHtml(tipo)}
+      </div>
+      ${items.map(r => {
+        const otro = r.esOrigen
+          ? { id: r.doc_destino_id, nombre: r.doc_destino_nombre,
+              tipo: r.doc_destino_tipo, numero: r.doc_destino_numero }
+          : { id: r.doc_origen_id,  nombre: r.doc_origen_nombre,
+              tipo: r.doc_origen_tipo,  numero: r.doc_origen_numero };
+        return `
+          <div class="relacion-item">
+            <div class="rel-icon-wrap">
+              <i class='bx bx-file-blank'></i>
+            </div>
+            <div class="rel-info" onclick="abrirDocumento(${otro.id})">
+              <div class="rel-nombre">${escapeHtml(otro.nombre || 'Documento')}</div>
+              <div class="rel-tipo-norma">${escapeHtml([otro.tipo, otro.numero].filter(Boolean).join(' '))}</div>
+              ${r.descripcion ? `<div class="rel-desc">${escapeHtml(r.descripcion)}</div>` : ''}
+            </div>
+            <button class="btn-icon btn-sm" title="Eliminar relación"
+                    onclick="eliminarRelacion(${r.id})" style="color:var(--red);">
+              <i class='bx bx-trash'></i>
+            </button>
+          </div>`;
+      }).join('')}
+    </div>`).join('');
+}
+
+// ─── Modal: editar metadatos normativos ──────────────────────────────────────
+function abrirModalEditarMetadatos() {
+  if (!estado.docActual) return;
+  const overlay = crearOverlay();
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:520px;">
+      <div class="modal-head">
+        <i class='bx bx-file-find'></i>
+        <h3>Metadatos normativos</h3>
+      </div>
+      ${htmlSeccionMetadatos(estado.docActual)}
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="cerrarModal()"><i class='bx bx-x'></i> Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarMetadatos()"><i class='bx bx-check'></i> Guardar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function guardarMetadatos() {
+  const meta = leerMetadatosModal();
+  try {
+    const doc = await api('PUT', `/documents/${estado.docActual.id}`, meta);
+    estado.docActual = { ...estado.docActual, ...doc };
+    toast('Metadatos guardados', 'ok');
+    cerrarModal();
+    await renderVisorHeader(estado.docActual);
+    renderBannerVigencia(estado.docActual);
+    if (_pestañaActiva === 'norma') renderNormaPanel(estado.docActual);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ─── Modal: agregar relación ──────────────────────────────────────────────────
+async function abrirModalAgregarRelacion() {
+  if (!estado.docActual) return;
+  const todos = await api('GET', '/documents/').catch(() => []);
+  const otros = todos.filter(d => d.id !== estado.docActual.id);
+
+  const overlay = crearOverlay();
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:480px;">
+      <div class="modal-head">
+        <i class='bx bx-git-branch'></i>
+        <h3>Agregar relación normativa</h3>
+      </div>
+      <div style="font-size:8.5pt;color:var(--subtext0);">
+        Documento origen: <strong style="color:var(--text);">
+          ${escapeHtml(estado.docActual.tipo_norma || '')} ${escapeHtml(estado.docActual.numero_norma || estado.docActual.name)}
+        </strong>
+      </div>
+      <div class="modal-field">
+        <label>Tipo de relación</label>
+        <select id="m-rel-tipo">
+          ${opcionesSelect(CONSTANTES.tipos_relacion)}
+        </select>
+      </div>
+      <div class="modal-field">
+        <label>Documento relacionado</label>
+        <select id="m-rel-destino" style="font-size:8.5pt;">
+          <option value="">— Selecciona —</option>
+          ${otros.map(d => `
+            <option value="${d.id}">
+              ${escapeHtml([d.tipo_norma, d.numero_norma, d.name].filter(Boolean).join(' · '))}
+            </option>`).join('')}
+        </select>
+      </div>
+      <div class="modal-field">
+        <label>Descripción (opcional)</label>
+        <input id="m-rel-desc" placeholder="ej. Modifica el artículo 5 sobre tarifas…">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="cerrarModal()"><i class='bx bx-x'></i> Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarRelacion()"><i class='bx bx-check'></i> Guardar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function guardarRelacion() {
+  const tipo    = document.getElementById('m-rel-tipo').value;
+  const destino = Number(document.getElementById('m-rel-destino').value);
+  const desc    = document.getElementById('m-rel-desc').value.trim();
+  if (!destino) { toast('Selecciona el documento relacionado', 'error'); return; }
+  try {
+    await api('POST', '/relations/', {
+      doc_origen_id:  estado.docActual.id,
+      doc_destino_id: destino,
+      tipo_relacion:  tipo,
+      descripcion:    desc,
+    });
+    toast('Relación guardada', 'ok');
+    cerrarModal();
+    renderNormaPanel(estado.docActual);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function eliminarRelacion(relId) {
+  if (!confirm('¿Eliminar esta relación?')) return;
+  try {
+    await api('DELETE', `/relations/${relId}`);
+    toast('Relación eliminada', 'ok');
+    renderNormaPanel(estado.docActual);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+initResizer('resizer-left',  'sidebar',        'left');
+initResizer('resizer-right', 'comments-panel', 'right');
+(async () => { await cargarConstantes(); await cargarArbol(); await cargarStats(); })();
+</script>
+</body>
+</html>
