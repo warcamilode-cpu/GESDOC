@@ -31,6 +31,13 @@ COMMENT_CATEGORIES  = ["General", "Importante", "Pregunta", "Corrección", "Refe
 COMMENT_PRIORITIES  = ["Alta", "Media", "Baja"]
 COMMENT_STATUSES    = ["Abierto", "Resuelto", "Pendiente"]
 
+TIPOS_NORMA = [
+    "Resolución", "Circular", "Oficio", "Memorando", "Decreto",
+    "Acuerdo", "Especificación Técnica", "Ficha Técnica", "Contrato", "Otro",
+]
+VIGENCIA_ESTADOS = ["Por confirmar", "Vigente", "Modificado", "Derogado", "Suspendido", "Compilado"]
+TIPOS_RELACION   = ["Deroga", "Modifica", "Desarrolla", "Concordante con", "Suspende", "Compila", "Referencia"]
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Utilidades de repositorio
@@ -236,7 +243,9 @@ def migrate_existing_to_vault():
 # DOCUMENTOS
 # ─────────────────────────────────────────────────────────────────────────────
 
-def add_document(name, path, fmt, tags="", status="Por revisar", folder_name=None):
+def add_document(name, path, fmt, tags="", status="Por revisar", folder_name=None,
+                 tipo_norma="", numero_norma="", entidad_emisora="",
+                 fecha_expedicion="", fecha_vigencia="", vigencia_estado="Por confirmar"):
     """
     Añade un documento al repositorio.
     Si se especifica folder_name, el archivo se copia a repositorio/[folder_name]/.
@@ -249,8 +258,13 @@ def add_document(name, path, fmt, tags="", status="Por revisar", folder_name=Non
     conn = get_connection()
     try:
         conn.execute(
-            "INSERT INTO documents (name, path, format, tags, status) VALUES (?,?,?,?,?)",
-            (name, vault_path, fmt, tags, status)
+            "INSERT INTO documents (name, path, format, tags, status,"
+            " tipo_norma, numero_norma, entidad_emisora,"
+            " fecha_expedicion, fecha_vigencia, vigencia_estado)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            (name, vault_path, fmt, tags, status,
+             tipo_norma, numero_norma, entidad_emisora,
+             fecha_expedicion, fecha_vigencia, vigencia_estado)
         )
         conn.commit()
         row = conn.execute("SELECT id FROM documents WHERE path=?", (vault_path,)).fetchone()
@@ -328,7 +342,9 @@ def get_document(doc_id):
 
 
 def update_document(doc_id, **kwargs):
-    allowed = {"name", "tags", "status"}
+    allowed = {"name", "tags", "status", "tipo_norma", "numero_norma",
+               "entidad_emisora", "fecha_expedicion", "fecha_vigencia",
+               "fecha_derogacion", "vigencia_estado"}
     fields  = {k: v for k, v in kwargs.items() if k in allowed}
     if not fields:
         return
@@ -617,4 +633,92 @@ def count_replies(parent_id):
     ).fetchone()
     conn.close()
     return row["n"] if row else 0
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# METADATOS NORMATIVOS — migraciones
+# ─────────────────────────────────────────────────────────────────────────────
+
+def add_metadatos_normativos():
+    """Migración: añade columnas de metadatos normativos a documents."""
+    columnas = [
+        ("tipo_norma",      "TEXT DEFAULT ''"),
+        ("numero_norma",    "TEXT DEFAULT ''"),
+        ("entidad_emisora", "TEXT DEFAULT ''"),
+        ("fecha_expedicion","TEXT DEFAULT ''"),
+        ("fecha_vigencia",  "TEXT DEFAULT ''"),
+        ("fecha_derogacion","TEXT DEFAULT ''"),
+        ("vigencia_estado", "TEXT DEFAULT 'Por confirmar'"),
+    ]
+    conn = get_connection()
+    for col, defn in columnas:
+        try:
+            conn.execute(f"ALTER TABLE documents ADD COLUMN {col} {defn}")
+        except Exception:
+            pass
+    conn.commit()
+    conn.close()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RELACIONES ENTRE DOCUMENTOS
+# ─────────────────────────────────────────────────────────────────────────────
+
+def init_relations():
+    """Crea la tabla de relaciones entre documentos."""
+    conn = get_connection()
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS document_relations (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            doc_origen_id  INTEGER NOT NULL,
+            doc_destino_id INTEGER NOT NULL,
+            tipo_relacion  TEXT    NOT NULL,
+            descripcion    TEXT    DEFAULT '',
+            created_at     TEXT    DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(doc_origen_id)  REFERENCES documents(id) ON DELETE CASCADE,
+            FOREIGN KEY(doc_destino_id) REFERENCES documents(id) ON DELETE CASCADE
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+
+def add_relation(doc_origen_id: int, doc_destino_id: int,
+                 tipo_relacion: str, descripcion: str = "") -> int:
+    conn = get_connection()
+    conn.execute(
+        "INSERT INTO document_relations (doc_origen_id, doc_destino_id, tipo_relacion, descripcion)"
+        " VALUES (?,?,?,?)",
+        (doc_origen_id, doc_destino_id, tipo_relacion, descripcion),
+    )
+    conn.commit()
+    row = conn.execute("SELECT last_insert_rowid() as id").fetchone()
+    conn.close()
+    return row["id"]
+
+
+def get_relations(doc_id: int) -> list:
+    """Devuelve todas las relaciones donde el doc participa (origen o destino)."""
+    conn = get_connection()
+    rows = conn.execute("""
+        SELECT r.*,
+               d1.name AS doc_origen_nombre,  d1.tipo_norma AS doc_origen_tipo,
+               d1.numero_norma AS doc_origen_numero,
+               d2.name AS doc_destino_nombre, d2.tipo_norma AS doc_destino_tipo,
+               d2.numero_norma AS doc_destino_numero
+        FROM document_relations r
+        JOIN documents d1 ON r.doc_origen_id  = d1.id
+        JOIN documents d2 ON r.doc_destino_id = d2.id
+        WHERE r.doc_origen_id = ? OR r.doc_destino_id = ?
+        ORDER BY r.tipo_relacion, r.created_at
+    """, (doc_id, doc_id)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def delete_relation(relation_id: int):
+    conn = get_connection()
+    conn.execute("DELETE FROM document_relations WHERE id=?", (relation_id,))
+    conn.commit()
+    conn.close()
 
