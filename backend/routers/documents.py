@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 
 import database as db
 from backend.models import DocumentRead, DocumentUpdate
-from backend.auth import get_current_user, require_editor
+from backend.auth import get_current_user, require_editor, require_admin
 
 router = APIRouter()
 
@@ -196,6 +196,18 @@ def eliminar_documento(doc_id: int):
     if not doc:
         raise HTTPException(404, "Documento no encontrado")
     db.delete_document(doc_id)
+
+
+@router.get("/personal-por-usuario")
+def personal_por_usuario(_: dict = Depends(require_admin)):
+    """Solo Admin: documentos personales agrupados por dueño."""
+    docs = db.get_personal_docs_grouped_by_user()
+    # Agrupa en un dict {username: [docs]}
+    grupos: dict = {}
+    for d in docs:
+        key = f"{d.get('owner_nombre','?')} (@{d.get('owner_username','?')})"
+        grupos.setdefault(key, []).append(d)
+    return [{"usuario": k, "documentos": v} for k, v in grupos.items()]
 
 
 @router.get("/{doc_id}/folders")

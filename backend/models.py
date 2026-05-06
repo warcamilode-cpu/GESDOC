@@ -52,10 +52,11 @@ class DocumentRead(BaseModel):
 # ─────────────────────────────────────────────────────────────────────────────
 
 class FolderCreate(BaseModel):
-    name:      str
-    icon:      str = "📁"
-    color:     str = "#89b4fa"
-    parent_id: Optional[int] = None
+    name:       str
+    icon:       str = "📁"
+    color:      str = "#89b4fa"
+    parent_id:  Optional[int] = None
+    biblioteca: str = "general"
 
 
 class FolderUpdate(BaseModel):
@@ -70,6 +71,8 @@ class FolderRead(BaseModel):
     icon:       str
     color:      str
     parent_id:  Optional[int] = None
+    biblioteca: str = "general"
+    owner_id:   Optional[int] = None
     created_at: str
     children:   List[FolderRead] = []
 

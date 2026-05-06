@@ -380,6 +380,22 @@ def get_documents_in_folder_for_user(folder_id: int, user_id: int, role: str,
     return [dict(r) for r in rows]
 
 
+def get_personal_docs_grouped_by_user() -> list:
+    """Admin: todos los docs personales con info del dueño, ordenados por usuario."""
+    conn = get_connection()
+    rows = conn.execute("""
+        SELECT d.*,
+               COALESCE(u.username, 'sin_usuario') AS owner_username,
+               COALESCE(u.nombre,   'Sin nombre')  AS owner_nombre
+        FROM documents d
+        LEFT JOIN users u ON d.owner_id = u.id
+        WHERE COALESCE(d.biblioteca,'general') = 'personal'
+        ORDER BY owner_username, d.added_at DESC
+    """).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 def get_unfoldered_documents_for_user(user_id: int, role: str,
                                       biblioteca: str = "general"):
     where, params = _where_biblioteca(biblioteca, user_id, role)
@@ -549,12 +565,13 @@ def get_all_folders():
     return [dict(r) for r in rows]
 
 
-def add_folder(name, icon="📁", color="#89b4fa", parent_id=None):
+def add_folder(name, icon="📁", color="#89b4fa", parent_id=None,
+               biblioteca="general", owner_id=None):
     conn = get_connection()
     try:
         conn.execute(
-            "INSERT INTO folders (name, icon, color, parent_id) VALUES (?,?,?,?)",
-            (name, icon, color, parent_id)
+            "INSERT INTO folders (name, icon, color, parent_id, biblioteca, owner_id) VALUES (?,?,?,?,?,?)",
+            (name, icon, color, parent_id, biblioteca, owner_id)
         )
         conn.commit()
         row = conn.execute(
@@ -804,6 +821,43 @@ def init_users():
     """)
     conn.commit()
     conn.close()
+
+
+def add_campos_usuario_carpeta():
+    """Migración: añade biblioteca y owner_id a la tabla folders."""
+    conn = get_connection()
+    for col, defn in [
+        ("biblioteca", "TEXT DEFAULT 'general'"),
+        ("owner_id",   "INTEGER DEFAULT NULL"),
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE folders ADD COLUMN {col} {defn}")
+        except Exception:
+            pass
+    conn.commit()
+    conn.close()
+
+
+def get_folders_for_user(user_id: int, role: str,
+                         biblioteca: str = "general") -> list:
+    """Carpetas filtradas por biblioteca y usuario."""
+    conn = get_connection()
+    if biblioteca == "personal":
+        if role == "admin":
+            rows = conn.execute(
+                "SELECT * FROM folders WHERE COALESCE(biblioteca,'general')='personal' ORDER BY name"
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM folders WHERE COALESCE(biblioteca,'general')='personal' AND owner_id=? ORDER BY name",
+                (user_id,)
+            ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM folders WHERE COALESCE(biblioteca,'general')='general' ORDER BY name"
+        ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 
 def add_campos_usuario_documento():
