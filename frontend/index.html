@@ -1139,6 +1139,67 @@ body {
 
 <style>
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── PDF text layer (selección y copia de texto) ── */
+.pdf-page-wrap {
+  position: relative;
+  margin: 0 auto 12px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.6);
+  border-radius: 3px;
+  line-height: 1;
+  display: block;
+}
+.pdf-page-wrap canvas { display: block; border-radius: 3px; }
+.textLayer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.textLayer span,
+.textLayer br {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  font-size: 1px; /* PDF.js lo escala con transform */
+}
+.textLayer ::selection {
+  background: rgba(137, 180, 250, 0.35);
+  color: transparent;
+}
+.textLayer ::-moz-selection {
+  background: rgba(137, 180, 250, 0.35);
+  color: transparent;
+}
+
+/* ── Indicador de página ── */
+#page-indicator {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  font-size: 8.5pt;
+  color: var(--subtext0);
+  background: var(--surface0);
+  border: 1px solid var(--surface1);
+  border-radius: var(--r6);
+  padding: 3px 8px;
+  user-select: none;
+  flex-shrink: 0;
+}
+#page-indicator.visible { display: flex; }
+#page-indicator .pi-num { color: var(--text); font-weight: 600; min-width: 16px; text-align: center; }
+#page-indicator button {
+  background: none; border: none; cursor: pointer;
+  color: var(--subtext0); padding: 0 2px;
+  font-size: 11pt; line-height: 1;
+  border-radius: 3px; transition: all var(--trans);
+}
+#page-indicator button:hover { color: var(--blue); background: rgba(137,180,250,.1); }
+#page-indicator button:disabled { opacity: 0.3; cursor: default; }
 </style>
 
 <script>
@@ -1387,6 +1448,14 @@ async function renderVisorHeader(doc) {
        download="${escapeHtml(doc.name)}" title="Descargar"><i class='bx bx-download'></i></a>
     <button class="btn-icon" onclick="exportarComentarios('excel')" title="Exportar Excel"><i class='bx bx-spreadsheet'></i></button>
     <button class="btn-icon" onclick="exportarComentarios('csv')" title="Exportar CSV"><i class='bx bx-table'></i></button>
+    <div id="page-indicator">
+      <button onclick="irAPagina(_paginaActual - 1)" id="pi-prev" title="Página anterior"><i class='bx bx-chevron-left'></i></button>
+      <span>Pág.</span>
+      <span class="pi-num" id="pi-current">1</span>
+      <span>/</span>
+      <span class="pi-num" id="pi-total">?</span>
+      <button onclick="irAPagina(_paginaActual + 1)" id="pi-next" title="Página siguiente"><i class='bx bx-chevron-right'></i></button>
+    </div>
     <span style="width:1px;height:18px;background:var(--surface1);display:inline-block;margin:0 2px;vertical-align:middle;"></span>
     <button class="btn-icon btn-fullscreen-enter" onclick="toggleFullscreen()" title="Pantalla completa"><i class='bx bx-fullscreen'></i></button>
     <button class="btn-icon btn-fullscreen-exit" onclick="toggleFullscreen()" title="Salir de pantalla completa"><i class='bx bx-exit-fullscreen'></i></button>
@@ -1437,6 +1506,9 @@ async function renderVisor(doc) {
     pdf.style.display = 'block';
     renderPDF(`/api/documents/${doc.id}/file`, pdf);
   } else {
+    // Ocultar indicador de página para no-PDFs
+    const ind = document.getElementById('page-indicator');
+    if (ind) ind.classList.remove('visible');
     pdf.style.display = 'none';
     htm.style.display = 'block';
     htm.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--subtext0);">Cargando…</div>';
@@ -1458,24 +1530,95 @@ async function renderVisor(doc) {
   }
 }
 
+// ── Control de página actual ──────────────────────────────────────────────────
+let _paginaActual = 1;
+let _totalPaginas = 0;
+let _pdfPageObserver = null;
+let _pdfPageEls = [];
+
+function _actualizarIndicador(pag, total) {
+  _paginaActual = pag;
+  _totalPaginas = total;
+  const ind = document.getElementById('page-indicator');
+  if (!ind) return;
+  ind.classList.toggle('visible', total > 0);
+  document.getElementById('pi-current').textContent = pag;
+  document.getElementById('pi-total').textContent   = total;
+  if (document.getElementById('pi-prev')) document.getElementById('pi-prev').disabled = pag <= 1;
+  if (document.getElementById('pi-next')) document.getElementById('pi-next').disabled = pag >= total;
+}
+
+function irAPagina(n) {
+  if (n < 1 || n > _totalPaginas) return;
+  const el = _pdfPageEls[n - 1];
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 async function renderPDF(url, container) {
+  if (_pdfPageObserver) { _pdfPageObserver.disconnect(); _pdfPageObserver = null; }
+  _pdfPageEls = [];
+  _actualizarIndicador(0, 0);
+
   container.innerHTML =
     '<div style="padding:3rem;text-align:center;color:var(--subtext0);">Cargando PDF…</div>';
   try {
-    const pdf  = await pdfjsLib.getDocument(url).promise;
+    const pdfDoc = await pdfjsLib.getDocument(url).promise;
     container.innerHTML = '';
+    const total = pdfDoc.numPages;
     const ancho = container.clientWidth - 48;
 
-    for (let n = 1; n <= pdf.numPages; n++) {
-      const page     = await pdf.getPage(n);
-      const escala   = ancho / page.getViewport({ scale: 1 }).width;
-      const viewport = page.getViewport({ scale: Math.min(escala, 2) });
-      const canvas   = document.createElement('canvas');
-      canvas.width   = viewport.width;
-      canvas.height  = viewport.height;
+    // Observer para detectar qué página es visible al hacer scroll
+    _pdfPageObserver = new IntersectionObserver((entries) => {
+      let maxRatio = 0, paginaVis = _paginaActual;
+      entries.forEach(e => {
+        if (e.intersectionRatio > maxRatio) {
+          maxRatio = e.intersectionRatio;
+          paginaVis = parseInt(e.target.dataset.page);
+        }
+      });
+      if (maxRatio > 0) _actualizarIndicador(paginaVis, total);
+    }, { root: container, threshold: [0, 0.25, 0.5, 0.75, 1] });
+
+    for (let n = 1; n <= total; n++) {
+      const page     = await pdfDoc.getPage(n);
+      const escala   = Math.min(ancho / page.getViewport({ scale: 1 }).width, 2);
+      const viewport = page.getViewport({ scale: escala });
+
+      // Contenedor posicionado (canvas + text layer juntos)
+      const wrap = document.createElement('div');
+      wrap.className  = 'pdf-page-wrap';
+      wrap.dataset.page = n;
+      wrap.style.width  = viewport.width  + 'px';
+      wrap.style.height = viewport.height + 'px';
+
+      // Canvas de renderizado
+      const canvas  = document.createElement('canvas');
+      canvas.width  = viewport.width;
+      canvas.height = viewport.height;
       await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-      container.appendChild(canvas);
+      wrap.appendChild(canvas);
+
+      // Text layer — permite seleccionar y copiar texto del PDF
+      const textLayerDiv = document.createElement('div');
+      textLayerDiv.className   = 'textLayer';
+      textLayerDiv.style.width  = viewport.width  + 'px';
+      textLayerDiv.style.height = viewport.height + 'px';
+      wrap.appendChild(textLayerDiv);
+
+      const textContent = await page.getTextContent();
+      pdfjsLib.renderTextLayer({
+        textContentSource: textContent,
+        container:  textLayerDiv,
+        viewport:   viewport,
+        textDivs:   [],
+      });
+
+      container.appendChild(wrap);
+      _pdfPageEls.push(wrap);
+      _pdfPageObserver.observe(wrap);
     }
+
+    _actualizarIndicador(1, total);
   } catch (e) {
     container.innerHTML =
       `<div style="padding:2rem;color:var(--red);text-align:center;">Error: ${escapeHtml(e.message)}</div>`;
