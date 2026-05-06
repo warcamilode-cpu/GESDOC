@@ -31,6 +31,8 @@ COMMENT_CATEGORIES  = ["General", "Importante", "Pregunta", "Corrección", "Refe
 COMMENT_PRIORITIES  = ["Alta", "Media", "Baja"]
 COMMENT_STATUSES    = ["Abierto", "Resuelto", "Pendiente"]
 
+ROLES = ["admin", "editor", "lector"]
+
 TIPOS_NORMA = [
     "Resolución", "Circular", "Oficio", "Memorando", "Decreto",
     "Acuerdo", "Especificación Técnica", "Ficha Técnica", "Contrato", "Otro",
@@ -245,7 +247,8 @@ def migrate_existing_to_vault():
 
 def add_document(name, path, fmt, tags="", status="Por revisar", folder_name=None,
                  tipo_norma="", numero_norma="", entidad_emisora="",
-                 fecha_expedicion="", fecha_vigencia="", vigencia_estado="Por confirmar"):
+                 fecha_expedicion="", fecha_vigencia="", vigencia_estado="Por confirmar",
+                 owner_id=None, biblioteca="general"):
     """
     Añade un documento al repositorio.
     Si se especifica folder_name, el archivo se copia a repositorio/[folder_name]/.
@@ -260,11 +263,13 @@ def add_document(name, path, fmt, tags="", status="Por revisar", folder_name=Non
         conn.execute(
             "INSERT INTO documents (name, path, format, tags, status,"
             " tipo_norma, numero_norma, entidad_emisora,"
-            " fecha_expedicion, fecha_vigencia, vigencia_estado)"
-            " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            " fecha_expedicion, fecha_vigencia, vigencia_estado,"
+            " owner_id, biblioteca)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (name, vault_path, fmt, tags, status,
              tipo_norma, numero_norma, entidad_emisora,
-             fecha_expedicion, fecha_vigencia, vigencia_estado)
+             fecha_expedicion, fecha_vigencia, vigencia_estado,
+             owner_id, biblioteca)
         )
         conn.commit()
         row = conn.execute("SELECT id FROM documents WHERE path=?", (vault_path,)).fetchone()
@@ -719,6 +724,115 @@ def get_relations(doc_id: int) -> list:
 def delete_relation(relation_id: int):
     conn = get_connection()
     conn.execute("DELETE FROM document_relations WHERE id=?", (relation_id,))
+    conn.commit()
+    conn.close()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# USUARIOS
+# ─────────────────────────────────────────────────────────────────────────────
+
+def init_users():
+    """Crea la tabla de usuarios."""
+    conn = get_connection()
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            username   TEXT UNIQUE NOT NULL,
+            password   TEXT NOT NULL,
+            nombre     TEXT DEFAULT '',
+            email      TEXT DEFAULT '',
+            role       TEXT DEFAULT 'lector',
+            activo     INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+
+def add_campos_usuario_documento():
+    """Migración: añade owner_id y biblioteca a la tabla documents."""
+    conn = get_connection()
+    for col, defn in [
+        ("owner_id",   "INTEGER DEFAULT NULL"),
+        ("biblioteca", "TEXT DEFAULT 'general'"),
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE documents ADD COLUMN {col} {defn}")
+        except Exception:
+            pass
+    conn.commit()
+    conn.close()
+
+
+def seed_admin(hashed_password: str):
+    """Crea el usuario admin inicial si no existe ningún usuario."""
+    conn = get_connection()
+    count = conn.execute("SELECT COUNT(*) as n FROM users").fetchone()["n"]
+    conn.close()
+    if count == 0:
+        add_user("admin", hashed_password, nombre="Administrador", role="admin")
+        print("ℹ️  Usuario admin creado. Usa la contraseña configurada en GESDOC_ADMIN_PASSWORD (defecto: admin123)")
+
+
+def get_user_by_username(username: str):
+    conn = get_connection()
+    row = conn.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_user_by_id(user_id: int):
+    conn = get_connection()
+    row = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_all_users():
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT id, username, nombre, email, role, activo, created_at"
+        " FROM users ORDER BY username"
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def add_user(username: str, hashed_password: str,
+             nombre: str = "", email: str = "", role: str = "lector") -> int | None:
+    conn = get_connection()
+    try:
+        conn.execute(
+            "INSERT INTO users (username, password, nombre, email, role) VALUES (?,?,?,?,?)",
+            (username, hashed_password, nombre, email, role),
+        )
+        conn.commit()
+        row = conn.execute("SELECT last_insert_rowid() as id").fetchone()
+        return row["id"]
+    except Exception:
+        return None
+    finally:
+        conn.close()
+
+
+def update_user(user_id: int, **kwargs):
+    allowed = {"nombre", "email", "role", "activo", "password"}
+    fields  = {k: v for k, v in kwargs.items() if k in allowed}
+    if not fields:
+        return
+    set_clause = ", ".join(f"{k}=?" for k in fields)
+    vals = list(fields.values()) + [user_id]
+    conn = get_connection()
+    conn.execute(f"UPDATE users SET {set_clause} WHERE id=?", vals)
+    conn.commit()
+    conn.close()
+
+
+def delete_user(user_id: int):
+    conn = get_connection()
+    conn.execute("DELETE FROM users WHERE id=?", (user_id,))
     conn.commit()
     conn.close()
 

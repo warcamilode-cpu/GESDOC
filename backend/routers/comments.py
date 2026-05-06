@@ -3,10 +3,11 @@ routers/comments.py — CRUD de comentarios con hilos (threading)
 """
 
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 
 import database as db
 from backend.models import CommentCreate, CommentUpdate, CommentRead
+from backend.auth import get_current_user
 
 router = APIRouter()
 
@@ -42,7 +43,9 @@ def listar_comentarios(
 
 
 @router.post("/", status_code=201)
-def crear_comentario(data: CommentCreate):
+def crear_comentario(data: CommentCreate, current_user: dict = Depends(get_current_user)):
+    # El autor se toma del usuario logueado — no se puede falsificar
+    autor = current_user.get("nombre") or current_user.get("username", "")
     comment_id = db.add_comment(
         doc_id=data.document_id,
         content=data.content,
@@ -51,7 +54,7 @@ def crear_comentario(data: CommentCreate):
         status=data.status,
         location_info=data.location_info,
         highlighted_text=data.highlighted_text,
-        author=data.author,
+        author=autor,
         parent_id=data.parent_id,
     )
     if comment_id is None:

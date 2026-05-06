@@ -34,7 +34,7 @@ class DocumentRead(BaseModel):
     status:           str
     added_at:         str
     last_opened:      Optional[str] = None
-    # Metadatos normativos (con defaults vacíos para docs pre-migración)
+    # Metadatos normativos
     tipo_norma:       str = ""
     numero_norma:     str = ""
     entidad_emisora:  str = ""
@@ -42,6 +42,9 @@ class DocumentRead(BaseModel):
     fecha_vigencia:   str = ""
     fecha_derogacion: str = ""
     vigencia_estado:  str = "Por confirmar"
+    # Campos de usuario
+    owner_id:         Optional[int] = None
+    biblioteca:       str = "general"
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -994,9 +994,117 @@ body {
 .toast.error i { color: var(--red); }
 .toast.info i  { color: var(--blue); }
 @keyframes toast-in { from{opacity:0;transform:translateX(16px)} to{opacity:1;transform:none} }
+
+/* ── Login overlay ── */
+#login-overlay {
+  position: fixed; inset: 0;
+  background: var(--crust);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 999;
+  transition: opacity 300ms ease;
+}
+#login-overlay.oculto { opacity: 0; pointer-events: none; }
+.login-card {
+  background: var(--mantle);
+  border: 1px solid var(--surface1);
+  border-radius: 14px;
+  padding: 36px 40px;
+  width: 340px;
+  box-shadow: var(--shadow-lg);
+  display: flex; flex-direction: column; gap: 20px;
+}
+.login-logo {
+  display: flex; align-items: center; gap: 10px; justify-content: center;
+  font-size: 22pt; font-weight: 800;
+  background: linear-gradient(135deg, var(--blue), var(--mauve));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.login-logo i { font-size: 28pt; -webkit-text-fill-color: var(--blue); }
+.login-subtitle { text-align: center; color: var(--subtext0); font-size: 9pt; margin-top: -12px; }
+.login-card label { font-size: 8.5pt; color: var(--subtext0); font-weight: 500; display: block; margin-bottom: 4px; }
+.login-card input {
+  width: 100%; font-family: var(--font); font-size: 10pt;
+  background: var(--surface0); border: 1px solid var(--surface1);
+  color: var(--text); border-radius: var(--r8); padding: 8px 12px; outline: none;
+  transition: border-color var(--trans);
+}
+.login-card input:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(137,180,250,.15); }
+.login-error { color: var(--red); font-size: 8.5pt; text-align: center; display: none; }
+.login-error.visible { display: block; }
+.btn-login {
+  width: 100%; padding: 10px; font-size: 10pt; font-weight: 700;
+  background: linear-gradient(135deg, var(--blue), #6aa0f0);
+  color: var(--crust); border: none; border-radius: var(--r8);
+  cursor: pointer; transition: all var(--trans);
+  box-shadow: 0 2px 10px rgba(137,180,250,.3);
+}
+.btn-login:hover { filter: brightness(1.08); box-shadow: 0 4px 16px rgba(137,180,250,.4); }
+
+/* ── Panel de usuario (topbar) ── */
+.user-chip {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--surface0); border: 1px solid var(--surface1);
+  border-radius: 20px; padding: 4px 10px 4px 6px;
+  font-size: 8.5pt; color: var(--text); cursor: pointer;
+  transition: all var(--trans); user-select: none;
+}
+.user-chip:hover { background: var(--surface1); }
+.user-avatar {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--blue), var(--mauve));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 8pt; font-weight: 700; color: var(--crust);
+  flex-shrink: 0;
+}
+.role-badge {
+  font-size: 7pt; font-weight: 700; border-radius: 8px;
+  padding: 1px 6px; text-transform: uppercase; letter-spacing: .5px;
+}
+.role-admin  { background: rgba(203,166,247,.2); color: var(--mauve); }
+.role-editor { background: rgba(137,180,250,.2); color: var(--blue); }
+.role-lector { background: rgba(88,91,112,.3);   color: var(--subtext0); }
+
+/* ── Tabs de biblioteca (sidebar) ── */
+.biblioteca-tabs {
+  display: flex; border-bottom: 1px solid var(--surface0); flex-shrink: 0;
+}
+.biblioteca-tab {
+  flex: 1; padding: 6px 4px; font-family: var(--font); font-size: 8pt;
+  font-weight: 600; color: var(--subtext0); background: transparent;
+  border: none; border-bottom: 2px solid transparent;
+  cursor: pointer; transition: all var(--trans);
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+}
+.biblioteca-tab:hover { color: var(--text); background: rgba(255,255,255,.03); }
+.biblioteca-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+/* ── Modal gestión de usuarios ── */
+.users-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+.users-table th { background: var(--surface0); color: var(--subtext0); padding: 6px 10px; text-align: left; font-weight: 600; font-size: 7.5pt; text-transform: uppercase; letter-spacing: .5px; }
+.users-table td { padding: 7px 10px; border-bottom: 1px solid var(--surface0); color: var(--text); }
+.users-table tr:hover td { background: rgba(255,255,255,.02); }
 </style>
 </head>
 <body>
+
+<!-- ── Login overlay ─────────────────────────────────────────────────────── -->
+<div id="login-overlay">
+  <div class="login-card">
+    <div class="login-logo"><i class='bx bxs-book-alt'></i> GESDOC</div>
+    <div class="login-subtitle">Sistema de Gestión Documental</div>
+    <div>
+      <label>Usuario</label>
+      <input id="login-user" type="text" placeholder="nombre de usuario" autocomplete="username">
+    </div>
+    <div>
+      <label>Contraseña</label>
+      <input id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <div id="login-error" class="login-error">Usuario o contraseña incorrectos</div>
+    <button class="btn-login" onclick="hacerLogin()">Iniciar sesión</button>
+  </div>
+</div>
 
 <!-- Drop overlay -->
 <div id="drop-overlay">
@@ -1021,12 +1129,18 @@ body {
       <i class='bx bx-message-dots'></i>
     </button>
     <div class="topbar-sep"></div>
-    <button class="btn btn-ghost btn-sm" onclick="abrirModalCarpeta(null)">
+    <button class="btn btn-ghost btn-sm" id="btn-nueva-carpeta" onclick="abrirModalCarpeta(null)">
       <i class='bx bx-folder-plus'></i> Carpeta
     </button>
-    <button class="btn btn-primary btn-sm" onclick="abrirModalSubir()">
+    <button class="btn btn-primary btn-sm" id="btn-subir" onclick="abrirModalSubir()">
       <i class='bx bx-upload'></i> Subir
     </button>
+    <div class="topbar-sep"></div>
+    <div class="user-chip" onclick="abrirMenuUsuario()" id="user-chip">
+      <div class="user-avatar" id="user-avatar">?</div>
+      <span id="user-nombre">—</span>
+      <span class="role-badge" id="user-role-badge"></span>
+    </div>
   </div>
 </div>
 
@@ -1041,6 +1155,14 @@ body {
     <div id="sidebar-header">
       <i class='bx bx-library' style="color:var(--blue);font-size:13pt;"></i>
       <span class="titulo">Biblioteca</span>
+    </div>
+    <div class="biblioteca-tabs" id="biblioteca-tabs">
+      <button class="biblioteca-tab active" id="tab-general" onclick="cambiarBiblioteca('general')">
+        <i class='bx bx-world'></i> General
+      </button>
+      <button class="biblioteca-tab" id="tab-personal" onclick="cambiarBiblioteca('personal')">
+        <i class='bx bx-user'></i> Personal
+      </button>
     </div>
     <div id="sidebar-scroll"></div>
   </div>
@@ -1209,15 +1331,74 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 // ─── Estado global ───────────────────────────────────────────────────────────
 const estado = {
   docActual:       null,
-  carpetaActiva:   null,   // null=todos | -1=sin carpeta | n=id
+  carpetaActiva:   null,
   respondiendo:    null,
   terminoBusqueda: '',
   arbolCarpetas:   [],
+  biblioteca:      'general',   // general | personal
+  usuarioActual:   null,
 };
 
-// ─── API helper ───────────────────────────────────────────────────────────────
+// ─── Auth helpers ─────────────────────────────────────────────────────────────
+function getToken()  { return localStorage.getItem('gesdoc_token'); }
+function getUsuario(){ return JSON.parse(localStorage.getItem('gesdoc_user') || 'null'); }
+
+function guardarSesion(token, user) {
+  localStorage.setItem('gesdoc_token', token);
+  localStorage.setItem('gesdoc_user', JSON.stringify(user));
+  estado.usuarioActual = user;
+}
+
+function cerrarSesion() {
+  localStorage.removeItem('gesdoc_token');
+  localStorage.removeItem('gesdoc_user');
+  estado.usuarioActual = null;
+  mostrarLogin();
+}
+
+function mostrarLogin() {
+  document.getElementById('login-overlay').classList.remove('oculto');
+  document.getElementById('login-pass').value = '';
+  document.getElementById('login-error').classList.remove('visible');
+}
+
+function ocultarLogin() {
+  document.getElementById('login-overlay').classList.add('oculto');
+}
+
+async function hacerLogin() {
+  const username = document.getElementById('login-user').value.trim();
+  const password = document.getElementById('login-pass').value;
+  if (!username || !password) return;
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    if (!res.ok) throw new Error('Credenciales incorrectas');
+    const data = await res.json();
+    guardarSesion(data.token, data.user);
+    ocultarLogin();
+    await iniciarApp();
+  } catch {
+    document.getElementById('login-error').classList.add('visible');
+  }
+}
+
+// Enter en el formulario de login
+document.getElementById('login-pass').addEventListener('keydown', e => {
+  if (e.key === 'Enter') hacerLogin();
+});
+document.getElementById('login-user').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('login-pass').focus();
+});
+
+// ─── API helper (con token JWT) ───────────────────────────────────────────────
 async function api(method, path, body = null, isForm = false) {
   const opts = { method, headers: {} };
+  const token = getToken();
+  if (token) opts.headers['Authorization'] = `Bearer ${token}`;
   if (body && !isForm) {
     opts.headers['Content-Type'] = 'application/json';
     opts.body = JSON.stringify(body);
@@ -1225,6 +1406,7 @@ async function api(method, path, body = null, isForm = false) {
     opts.body = body;
   }
   const res = await fetch('/api' + path, opts);
+  if (res.status === 401) { cerrarSesion(); return null; }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail || 'Error de servidor');
@@ -1254,11 +1436,12 @@ async function cargarStats() {
 
 // ─── Sidebar: árbol de carpetas ───────────────────────────────────────────────
 async function cargarArbol() {
+  const bib = estado.biblioteca;
   try {
     const [arbol, todos, sinCarpeta] = await Promise.all([
       api('GET', '/folders/tree'),
-      api('GET', '/documents/'),
-      api('GET', '/documents/?sin_carpeta=true'),
+      api('GET', `/documents/?biblioteca=${bib}`),
+      api('GET', `/documents/?sin_carpeta=true&biblioteca=${bib}`),
     ]);
     estado.arbolCarpetas = arbol;
     renderSidebar(arbol, todos, sinCarpeta);
@@ -1348,7 +1531,7 @@ function crearNodoCarpeta(carpeta) {
     chevronEl.classList.toggle('open', expandido);
     if (expandido && !docsZone.dataset.loaded) {
       docsZone.dataset.loaded = '1';
-      const docs = await api('GET', `/documents/?folder_id=${carpeta.id}`).catch(() => []);
+      const docs = await api('GET', `/documents/?folder_id=${carpeta.id}&biblioteca=${estado.biblioteca}`).catch(() => []);
       for (const doc of docs) docsZone.appendChild(crearTarjetaDoc(doc));
     }
     seleccionarCarpeta(carpeta.id, header);
@@ -1968,12 +2151,19 @@ async function abrirModalSubirConArchivos(archivos) {
         <label>Archivo (PDF, DOCX, MD, TXT)</label>
         <input type="file" id="m-file" accept=".pdf,.docx,.doc,.md,.txt,.markdown">
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
         <div class="modal-field">
           <label>Carpeta destino</label>
           <select id="m-folder-dest">
             <option value="">Sin carpeta</option>
             ${carpetas.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>Biblioteca</label>
+          <select id="m-biblioteca">
+            <option value="general">📚 General</option>
+            <option value="personal" ${estado.biblioteca==='personal'?'selected':''}>👤 Personal</option>
           </select>
         </div>
         <div class="modal-field">
@@ -2009,8 +2199,9 @@ async function subirDocumento() {
   fd.append('file', fi.files[0]);
   const fid = document.getElementById('m-folder-dest').value;
   if (fid) fd.append('folder_id', fid);
-  fd.append('status', document.getElementById('m-status').value);
-  fd.append('tags',   document.getElementById('m-tags').value);
+  fd.append('status',    document.getElementById('m-status').value);
+  fd.append('tags',      document.getElementById('m-tags').value);
+  fd.append('biblioteca', document.getElementById('m-biblioteca')?.value || 'general');
   const meta = leerMetadatosModal();
   Object.entries(meta).forEach(([k, v]) => fd.append(k, v));
   try {
@@ -2625,10 +2816,288 @@ async function eliminarRelacion(relId) {
   } catch (e) { toast(e.message, 'error'); }
 }
 
+// ─── Biblioteca dual ─────────────────────────────────────────────────────────
+function cambiarBiblioteca(modo) {
+  estado.biblioteca = modo;
+  document.querySelectorAll('.biblioteca-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(`tab-${modo}`)?.classList.add('active');
+  // Lectors no ven la pestaña personal
+  const user = estado.usuarioActual;
+  if (user?.role === 'lector') {
+    document.getElementById('tab-personal').style.display = 'none';
+  }
+  cargarArbol();
+}
+
+// ─── Menú de usuario ─────────────────────────────────────────────────────────
+function abrirMenuUsuario() {
+  const user = estado.usuarioActual;
+  if (!user) return;
+  const overlay = crearOverlay();
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:320px;">
+      <div class="modal-head">
+        <div class="user-avatar" style="width:32px;height:32px;font-size:12pt;">
+          ${escapeHtml((user.nombre || user.username)[0].toUpperCase())}
+        </div>
+        <div>
+          <div style="font-size:10pt;font-weight:700;">${escapeHtml(user.nombre || user.username)}</div>
+          <div style="font-size:8pt;color:var(--subtext0);">@${escapeHtml(user.username)}</div>
+        </div>
+        <span class="role-badge role-${user.role}" style="margin-left:auto;">${user.role}</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <button class="btn btn-ghost" style="justify-content:flex-start;" onclick="cerrarModal();abrirModalCambiarPassword()">
+          <i class='bx bx-lock-alt'></i> Cambiar contraseña
+        </button>
+        ${user.role === 'admin' ? `
+        <button class="btn btn-ghost" style="justify-content:flex-start;" onclick="cerrarModal();abrirGestionUsuarios()">
+          <i class='bx bx-group'></i> Gestionar usuarios
+        </button>` : ''}
+        <hr style="border-color:var(--surface1);margin:4px 0;">
+        <button class="btn btn-danger" style="justify-content:flex-start;" onclick="cerrarModal();cerrarSesion()">
+          <i class='bx bx-log-out'></i> Cerrar sesión
+        </button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function renderizarChipUsuario(user) {
+  const inicial = (user.nombre || user.username)[0].toUpperCase();
+  document.getElementById('user-avatar').textContent   = inicial;
+  document.getElementById('user-nombre').textContent   = user.nombre || user.username;
+  const badge = document.getElementById('user-role-badge');
+  badge.textContent  = user.role;
+  badge.className    = `role-badge role-${user.role}`;
+  // Lectors no pueden subir ni crear carpetas
+  if (user.role === 'lector') {
+    document.getElementById('btn-subir')?.setAttribute('disabled', 'disabled');
+    document.getElementById('btn-nueva-carpeta')?.setAttribute('disabled', 'disabled');
+  }
+}
+
+// ─── Cambiar contraseña ───────────────────────────────────────────────────────
+function abrirModalCambiarPassword() {
+  const overlay = crearOverlay();
+  overlay.innerHTML = `
+    <div class="modal">
+      <div class="modal-head"><i class='bx bx-lock-alt'></i><h3>Cambiar contraseña</h3></div>
+      <div class="modal-field">
+        <label>Contraseña actual</label>
+        <input type="password" id="m-pass-actual" placeholder="••••••">
+      </div>
+      <div class="modal-field">
+        <label>Nueva contraseña</label>
+        <input type="password" id="m-pass-nueva" placeholder="Mínimo 6 caracteres">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="cerrarModal()"><i class='bx bx-x'></i> Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarNuevaPassword()"><i class='bx bx-check'></i> Guardar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function guardarNuevaPassword() {
+  const actual = document.getElementById('m-pass-actual').value;
+  const nueva  = document.getElementById('m-pass-nueva').value;
+  if (nueva.length < 6) { toast('Mínimo 6 caracteres', 'error'); return; }
+  try {
+    await api('POST', '/auth/cambiar-password', { password_actual: actual, password_nueva: nueva });
+    toast('Contraseña actualizada', 'ok');
+    cerrarModal();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ─── Gestión de usuarios (Admin) ──────────────────────────────────────────────
+async function abrirGestionUsuarios() {
+  const usuarios = await api('GET', '/users/').catch(() => []);
+  const overlay  = crearOverlay();
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:600px;width:95%;">
+      <div class="modal-head">
+        <i class='bx bx-group'></i><h3>Gestión de usuarios</h3>
+        <button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="abrirModalNuevoUsuario()">
+          <i class='bx bx-plus'></i> Nuevo usuario
+        </button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="users-table">
+          <thead><tr>
+            <th>Usuario</th><th>Nombre</th><th>Rol</th><th>Estado</th><th>Acciones</th>
+          </tr></thead>
+          <tbody>
+            ${usuarios.map(u => `
+              <tr>
+                <td><code style="font-size:8pt;">@${escapeHtml(u.username)}</code></td>
+                <td>${escapeHtml(u.nombre || '—')}</td>
+                <td><span class="role-badge role-${u.role}">${u.role}</span></td>
+                <td>${u.activo ? '<span style="color:var(--green);">●</span> Activo' : '<span style="color:var(--red);">●</span> Inactivo'}</td>
+                <td style="display:flex;gap:4px;">
+                  <button class="btn-icon btn-sm" onclick="abrirModalEditarUsuario(${u.id})" title="Editar"><i class='bx bx-edit'></i></button>
+                  <button class="btn-icon btn-sm" style="color:var(--red);" onclick="eliminarUsuario(${u.id},'${escapeHtml(u.username)}')" title="Eliminar"><i class='bx bx-trash'></i></button>
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="cerrarModal()"><i class='bx bx-x'></i> Cerrar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function abrirModalNuevoUsuario() {
+  cerrarModal();
+  const overlay = crearOverlay();
+  overlay.innerHTML = `
+    <div class="modal">
+      <div class="modal-head"><i class='bx bx-user-plus'></i><h3>Nuevo usuario</h3></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div class="modal-field"><label>Usuario</label><input id="m-u-user" placeholder="sin espacios"></div>
+        <div class="modal-field"><label>Nombre completo</label><input id="m-u-nombre" placeholder="Nombre"></div>
+      </div>
+      <div class="modal-field"><label>Email (opcional)</label><input id="m-u-email" type="email" placeholder="correo@ejemplo.com"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div class="modal-field">
+          <label>Rol</label>
+          <select id="m-u-role">
+            <option value="lector">Lector</option>
+            <option value="editor">Editor</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div class="modal-field"><label>Contraseña</label><input type="password" id="m-u-pass" placeholder="Mínimo 6 chars"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="cerrarModal();abrirGestionUsuarios()"><i class='bx bx-x'></i> Cancelar</button>
+        <button class="btn btn-primary" onclick="crearUsuario()"><i class='bx bx-check'></i> Crear</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function crearUsuario() {
+  const username = document.getElementById('m-u-user').value.trim();
+  const nombre   = document.getElementById('m-u-nombre').value.trim();
+  const email    = document.getElementById('m-u-email').value.trim();
+  const role     = document.getElementById('m-u-role').value;
+  const password = document.getElementById('m-u-pass').value;
+  if (!username || !password) { toast('Usuario y contraseña son requeridos', 'error'); return; }
+  try {
+    await api('POST', '/users/', { username, nombre, email, role, password });
+    toast(`Usuario @${username} creado`, 'ok');
+    cerrarModal();
+    abrirGestionUsuarios();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function abrirModalEditarUsuario(userId) {
+  const usuarios = await api('GET', '/users/').catch(() => []);
+  const u = usuarios.find(x => x.id === userId);
+  if (!u) return;
+  cerrarModal();
+  const overlay = crearOverlay();
+  overlay.innerHTML = `
+    <div class="modal">
+      <div class="modal-head"><i class='bx bx-edit'></i><h3>Editar @${escapeHtml(u.username)}</h3></div>
+      <div class="modal-field"><label>Nombre completo</label><input id="m-eu-nombre" value="${escapeHtml(u.nombre||'')}"></div>
+      <div class="modal-field"><label>Email</label><input type="email" id="m-eu-email" value="${escapeHtml(u.email||'')}"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div class="modal-field">
+          <label>Rol</label>
+          <select id="m-eu-role">
+            ${['lector','editor','admin'].map(r => `<option value="${r}" ${r===u.role?'selected':''}>${r}</option>`).join('')}
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>Estado</label>
+          <select id="m-eu-activo">
+            <option value="1" ${u.activo?'selected':''}>Activo</option>
+            <option value="0" ${!u.activo?'selected':''}>Inactivo</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-field"><label>Nueva contraseña (dejar vacío = no cambiar)</label><input type="password" id="m-eu-pass" placeholder="••••••"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="cerrarModal();abrirGestionUsuarios()"><i class='bx bx-x'></i> Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarEdicionUsuario(${userId})"><i class='bx bx-check'></i> Guardar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function guardarEdicionUsuario(userId) {
+  const cambios = {
+    nombre: document.getElementById('m-eu-nombre').value.trim(),
+    email:  document.getElementById('m-eu-email').value.trim(),
+    role:   document.getElementById('m-eu-role').value,
+    activo: Number(document.getElementById('m-eu-activo').value),
+  };
+  const newPass = document.getElementById('m-eu-pass').value;
+  if (newPass) cambios.password = newPass;
+  try {
+    await api('PUT', `/users/${userId}`, cambios);
+    toast('Usuario actualizado', 'ok');
+    cerrarModal();
+    abrirGestionUsuarios();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function eliminarUsuario(userId, username) {
+  if (!confirm(`¿Eliminar al usuario @${username}?`)) return;
+  try {
+    await api('DELETE', `/users/${userId}`);
+    toast(`Usuario @${username} eliminado`, 'ok');
+    cerrarModal();
+    abrirGestionUsuarios();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ─── Iniciar app ──────────────────────────────────────────────────────────────
+async function iniciarApp() {
+  const user = getUsuario();
+  if (!user) { mostrarLogin(); return; }
+  estado.usuarioActual = user;
+  renderizarChipUsuario(user);
+  // Ocultar pestaña Personal para Lectors
+  if (user.role === 'lector') {
+    document.getElementById('tab-personal').style.display = 'none';
+  }
+  await cargarConstantes();
+  await cargarArbol();
+  await cargarStats();
+}
+
+// ─── Sobrescribir cargarArbol para pasar biblioteca ───────────────────────────
+const _cargarArbolOriginal = cargarArbol;
+// (cargarArbol ya pasa biblioteca via estado.biblioteca en el API call)
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 initResizer('resizer-left',  'sidebar',        'left');
 initResizer('resizer-right', 'comments-panel', 'right');
-(async () => { await cargarConstantes(); await cargarArbol(); await cargarStats(); })();
+
+// Verificar sesión al cargar
+(async () => {
+  const token = getToken();
+  if (token) {
+    try {
+      const res = await fetch('/api/auth/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const user = await res.json();
+        guardarSesion(token, user);
+        ocultarLogin();
+        await iniciarApp();
+        return;
+      }
+    } catch { /* token inválido */ }
+  }
+  mostrarLogin();
+})();
 </script>
 </body>
 </html>
