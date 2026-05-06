@@ -1476,10 +1476,16 @@ async function cargarArbol() {
   const bib  = estado.biblioteca;
   const user = estado.usuarioActual;
   try {
-    // Admin en modo personal → vista agrupada por usuario
+    // Admin en modo personal → árbol de carpetas + docs sin carpeta agrupados por usuario
     if (bib === 'personal' && user?.role === 'admin') {
-      const grupos = await api('GET', '/documents/personal-por-usuario');
-      renderSidebarPersonalAdmin(grupos);
+      const [arbol, todos, sinCarpeta, grupos] = await Promise.all([
+        api('GET', `/folders/tree?biblioteca=${bib}`),
+        api('GET', `/documents/?biblioteca=${bib}`),
+        api('GET', `/documents/?sin_carpeta=true&biblioteca=${bib}`),
+        api('GET', '/documents/personal-por-usuario'),
+      ]);
+      estado.arbolCarpetas = arbol;
+      renderSidebarPersonalAdmin(arbol, todos, sinCarpeta, grupos);
       return;
     }
     const [arbol, todos, sinCarpeta] = await Promise.all([
@@ -1494,7 +1500,7 @@ async function cargarArbol() {
   }
 }
 
-function renderSidebarPersonalAdmin(grupos) {
+function renderSidebarPersonalAdmin(arbol, todos, sinCarpeta, grupos) {
   const scroll = document.getElementById('sidebar-scroll');
   scroll.innerHTML = '';
 
@@ -1508,20 +1514,37 @@ function renderSidebarPersonalAdmin(grupos) {
     </button>`;
   scroll.appendChild(btnCarpeta);
 
-  if (!grupos.length) {
-    scroll.innerHTML += '<div style="text-align:center;padding:1rem;color:var(--overlay0);font-size:8.5pt;">Sin documentos personales</div>';
-    return;
-  }
-  for (const grupo of grupos) {
-    // Cabecera de usuario
-    const hdr = document.createElement('div');
-    hdr.style.cssText = 'padding:6px 10px 3px;font-size:7.5pt;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.8px;border-top:1px solid var(--surface0);margin-top:4px;display:flex;align-items:center;gap:6px;';
-    hdr.innerHTML = `<i class='bx bx-user' style="font-size:10pt;"></i>${escapeHtml(grupo.usuario)}`;
-    scroll.appendChild(hdr);
-    // Documentos del usuario
-    for (const doc of grupo.documentos) {
-      scroll.appendChild(crearTarjetaDoc(doc));
+  // Todos los documentos
+  scroll.appendChild(crearItemTodos(todos.length));
+
+  // Árbol de carpetas (igual que en biblioteca general)
+  for (const c of arbol) scroll.appendChild(crearNodoCarpeta(c));
+
+  // Sin carpeta — agrupados por usuario
+  if (sinCarpeta.length > 0) {
+    const sinCarpetaIds = new Set(sinCarpeta.map(d => d.id));
+    const sep = document.createElement('div');
+    sep.className = 'sidebar-section-label';
+    sep.textContent = 'Sin carpeta';
+    scroll.appendChild(sep);
+
+    for (const grupo of grupos) {
+      const docsGrupo = grupo.documentos.filter(d => sinCarpetaIds.has(d.id));
+      if (!docsGrupo.length) continue;
+      // Cabecera de usuario dentro de "sin carpeta"
+      const hdr = document.createElement('div');
+      hdr.style.cssText = 'padding:4px 10px 2px;font-size:7pt;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.7px;display:flex;align-items:center;gap:4px;opacity:.85;';
+      hdr.innerHTML = `<i class='bx bx-user' style="font-size:9pt;"></i>${escapeHtml(grupo.usuario)}`;
+      scroll.appendChild(hdr);
+      for (const doc of docsGrupo) scroll.appendChild(crearTarjetaDoc(doc));
     }
+  }
+
+  if (!todos.length) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'text-align:center;padding:1rem;color:var(--overlay0);font-size:8.5pt;';
+    empty.textContent = 'Sin documentos personales';
+    scroll.appendChild(empty);
   }
 }
 
