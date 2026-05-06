@@ -1517,35 +1517,67 @@ function renderSidebarPersonalAdmin(arbol, todos, sinCarpeta, grupos) {
   // Todos los documentos
   scroll.appendChild(crearItemTodos(todos.length));
 
-  // Árbol de carpetas (igual que en biblioteca general)
-  for (const c of arbol) scroll.appendChild(crearNodoCarpeta(c));
-
-  // Sin carpeta — agrupados por usuario
-  if (sinCarpeta.length > 0) {
-    const sinCarpetaIds = new Set(sinCarpeta.map(d => d.id));
-    const sep = document.createElement('div');
-    sep.className = 'sidebar-section-label';
-    sep.textContent = 'Sin carpeta';
-    scroll.appendChild(sep);
-
-    for (const grupo of grupos) {
-      const docsGrupo = grupo.documentos.filter(d => sinCarpetaIds.has(d.id));
-      if (!docsGrupo.length) continue;
-      // Cabecera de usuario dentro de "sin carpeta"
-      const hdr = document.createElement('div');
-      hdr.style.cssText = 'padding:4px 10px 2px;font-size:7pt;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.7px;display:flex;align-items:center;gap:4px;opacity:.85;';
-      hdr.innerHTML = `<i class='bx bx-user' style="font-size:9pt;"></i>${escapeHtml(grupo.usuario)}`;
-      scroll.appendChild(hdr);
-      for (const doc of docsGrupo) scroll.appendChild(crearTarjetaDoc(doc));
-    }
-  }
-
-  if (!todos.length) {
+  if (!todos.length && !arbol.length) {
     const empty = document.createElement('div');
     empty.style.cssText = 'text-align:center;padding:1rem;color:var(--overlay0);font-size:8.5pt;';
     empty.textContent = 'Sin documentos personales';
     scroll.appendChild(empty);
+    return;
   }
+
+  const sinCarpetaIds = new Set(sinCarpeta.map(d => d.id));
+
+  // Agrupar top-level folders por owner_id
+  const carpetasPorOwner = {};
+  const carpetasSinOwner = [];
+  for (const c of arbol) {
+    if (c.owner_id != null) {
+      (carpetasPorOwner[c.owner_id] = carpetasPorOwner[c.owner_id] || []).push(c);
+    } else {
+      carpetasSinOwner.push(c);
+    }
+  }
+
+  // Renderizar sección por usuario
+  const ownerIdsVistos = new Set();
+  for (const grupo of grupos) {
+    const oid = grupo.documentos[0]?.owner_id;
+    const carpetasGrupo = (oid != null ? carpetasPorOwner[oid] : null) || [];
+    const docsGrupoSinCarpeta = grupo.documentos.filter(d => sinCarpetaIds.has(d.id));
+    if (oid != null) ownerIdsVistos.add(oid);
+
+    if (!carpetasGrupo.length && !docsGrupoSinCarpeta.length) continue;
+
+    // Cabecera de usuario
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'padding:6px 10px 3px;font-size:7.5pt;font-weight:700;color:var(--blue);' +
+      'text-transform:uppercase;letter-spacing:.8px;border-top:1px solid var(--surface0);' +
+      'margin-top:4px;display:flex;align-items:center;gap:6px;';
+    hdr.innerHTML = `<i class='bx bx-user' style="font-size:10pt;"></i>${escapeHtml(grupo.usuario)}`;
+    scroll.appendChild(hdr);
+
+    // Carpetas del usuario
+    for (const c of carpetasGrupo) scroll.appendChild(crearNodoCarpeta(c));
+
+    // Docs sin carpeta del usuario
+    for (const doc of docsGrupoSinCarpeta) scroll.appendChild(crearTarjetaDoc(doc));
+  }
+
+  // Carpetas de owners sin documentos (edge case: solo tienen carpetas, sin docs)
+  for (const [oidStr, folders] of Object.entries(carpetasPorOwner)) {
+    const oid = Number(oidStr);
+    if (ownerIdsVistos.has(oid)) continue;
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'padding:6px 10px 3px;font-size:7.5pt;font-weight:700;color:var(--blue);' +
+      'text-transform:uppercase;letter-spacing:.8px;border-top:1px solid var(--surface0);' +
+      'margin-top:4px;display:flex;align-items:center;gap:6px;';
+    hdr.innerHTML = `<i class='bx bx-user' style="font-size:10pt;"></i>Usuario #${oid}`;
+    scroll.appendChild(hdr);
+    for (const c of folders) scroll.appendChild(crearNodoCarpeta(c));
+  }
+
+  // Carpetas sin owner_id (creadas antes de la migración)
+  for (const c of carpetasSinOwner) scroll.appendChild(crearNodoCarpeta(c));
 }
 
 function renderSidebar(arbol, todos, sinCarpeta) {
