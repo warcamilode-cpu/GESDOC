@@ -32,7 +32,8 @@ async def lifespan(app: FastAPI):
     # Repositorio físico
     db.ensure_vault()
     # Crear admin inicial si no hay usuarios
-    pwd = os.environ.get("GESDOC_ADMIN_PASSWORD", "admin123")
+    # bcrypt tiene límite de 72 bytes — truncamos por seguridad
+    pwd = os.environ.get("GESDOC_ADMIN_PASSWORD", "admin123")[:72]
     db.seed_admin(hash_password(pwd))
     yield
 
