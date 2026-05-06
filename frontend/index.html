@@ -1497,8 +1497,19 @@ async function cargarArbol() {
 function renderSidebarPersonalAdmin(grupos) {
   const scroll = document.getElementById('sidebar-scroll');
   scroll.innerHTML = '';
+
+  // Botón para crear carpeta personal desde el sidebar
+  const btnCarpeta = document.createElement('div');
+  btnCarpeta.style.cssText = 'padding:4px 8px;';
+  btnCarpeta.innerHTML = `
+    <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:flex-start;"
+            onclick="abrirModalCarpeta(null)">
+      <i class='bx bx-folder-plus'></i> Nueva carpeta personal
+    </button>`;
+  scroll.appendChild(btnCarpeta);
+
   if (!grupos.length) {
-    scroll.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--overlay0);font-size:8.5pt;">Sin documentos personales</div>';
+    scroll.innerHTML += '<div style="text-align:center;padding:1rem;color:var(--overlay0);font-size:8.5pt;">Sin documentos personales</div>';
     return;
   }
   for (const grupo of grupos) {
@@ -1517,6 +1528,18 @@ function renderSidebarPersonalAdmin(grupos) {
 function renderSidebar(arbol, todos, sinCarpeta) {
   const scroll = document.getElementById('sidebar-scroll');
   scroll.innerHTML = '';
+
+  // En modo personal: botón visible de "nueva carpeta personal"
+  if (estado.biblioteca === 'personal') {
+    const btnWrap = document.createElement('div');
+    btnWrap.style.cssText = 'padding:4px 8px;';
+    btnWrap.innerHTML = `
+      <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:flex-start;"
+              onclick="abrirModalCarpeta(null)">
+        <i class='bx bx-folder-plus'></i> Nueva carpeta personal
+      </button>`;
+    scroll.appendChild(btnWrap);
+  }
 
   // Todos los documentos
   scroll.appendChild(crearItemTodos(todos.length));
@@ -2205,6 +2228,10 @@ document.addEventListener('drop', e => {
 // ─── Modal: nueva / editar carpeta ───────────────────────────────────────────
 function abrirModalCarpeta(carpetaId, parentId = null) {
   const titulo = carpetaId ? 'Editar Carpeta' : (parentId ? 'Nueva Subcarpeta' : 'Nueva Carpeta');
+  const bib    = estado.biblioteca;
+  const bibLabel = bib === 'personal'
+    ? `<span style="color:var(--blue);font-weight:600;"><i class='bx bx-user'></i> Personal</span>`
+    : `<span style="color:var(--green);font-weight:600;"><i class='bx bx-world'></i> General</span>`;
   const overlay = crearOverlay();
   overlay.innerHTML = `
     <div class="modal">
@@ -2212,6 +2239,12 @@ function abrirModalCarpeta(carpetaId, parentId = null) {
         <i class='bx bx-folder-plus'></i>
         <h3>${titulo}</h3>
       </div>
+      ${!carpetaId ? `
+      <div style="background:var(--surface0);border:1px solid var(--surface1);border-radius:var(--r6);
+                  padding:7px 12px;font-size:8.5pt;color:var(--subtext0);display:flex;align-items:center;gap:6px;">
+        <i class='bx bx-info-circle' style="font-size:11pt;"></i>
+        Esta carpeta se creará en la biblioteca ${bibLabel}
+      </div>` : ''}
       <div class="modal-field">
         <label>Nombre</label>
         <input id="m-folder-name" placeholder="Nombre de la carpeta">
