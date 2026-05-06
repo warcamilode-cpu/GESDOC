@@ -12,19 +12,12 @@ router = APIRouter()
 
 
 def _documentos_visibles(current_user: dict) -> list:
-    """Devuelve solo los documentos que el usuario tiene derecho a ver."""
+    """Devuelve todos los documentos que el usuario puede ver (general + su personal)."""
     uid = int(current_user.get("id", 0))
     rol = current_user.get("role", "lector")
-    todos = db.get_all_documents()
-    visibles = []
-    for d in todos:
-        bib = d.get("biblioteca", "general")
-        if bib == "general":
-            visibles.append(d)
-        elif bib == "personal":
-            if rol == "admin" or int(d.get("owner_id") or 0) == uid:
-                visibles.append(d)
-    return visibles
+    generales  = db.get_all_documents_for_user(uid, rol, "general")
+    personales = db.get_all_documents_for_user(uid, rol, "personal")
+    return generales + personales
 
 
 @router.get("/")

@@ -85,30 +85,16 @@ def listar_documentos(
     biblioteca:      str           = Query("general"),   # general | personal
     current_user:    dict          = Depends(get_current_user),
 ):
-    if sin_carpeta:
-        docs = db.get_unfoldered_documents()
-    elif folder_id is not None:
-        docs = db.get_documents_in_folder(folder_id)
-    else:
-        docs = db.get_all_documents()
-
-    # Filtrar por biblioteca — conversión explícita para evitar mismatch de tipos
+    # Filtrado por biblioteca hecho directamente en SQL
     uid = int(current_user.get("id", 0))
     rol = current_user.get("role", "lector")
 
-    if biblioteca == "personal":
-        if rol == "admin":
-            # Admin ve TODAS las personales
-            docs = [d for d in docs if d.get("biblioteca") == "personal"]
-        else:
-            # Editor/Lector solo ven las suyas
-            docs = [d for d in docs
-                    if d.get("biblioteca") == "personal"
-                    and int(d.get("owner_id") or 0) == uid]
+    if sin_carpeta:
+        docs = db.get_unfoldered_documents_for_user(uid, rol, biblioteca)
+    elif folder_id is not None:
+        docs = db.get_documents_in_folder_for_user(folder_id, uid, rol, biblioteca)
     else:
-        # Biblioteca general: solo docs marcados como "general"
-        docs = [d for d in docs
-                if d.get("biblioteca", "general") == "general"]
+        docs = db.get_all_documents_for_user(uid, rol, biblioteca)
 
     if status:
         docs = [d for d in docs if d["status"] == status]
