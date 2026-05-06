@@ -91,6 +91,23 @@ CREATE TABLE sessions (
 
 ---
 
+## 📄 Mejoras al visor de documentos — PENDIENTES DE IMPLEMENTAR
+
+### 1. Indicador de página actual y total
+- Mostrar **"Página X / Y"** en el toolbar del visor mientras se lee un PDF
+- Actualizar el número de página actual mientras el usuario hace scroll (IntersectionObserver por canvas)
+- Flechas ← → para saltar entre páginas directamente
+- Para DOCX/MD/TXT: mostrar progreso de scroll (%) en lugar de páginas
+
+### 2. Copiar texto de PDFs
+- Agregar **capa de texto (text layer)** de PDF.js sobre cada canvas renderizado
+- El texto queda seleccionable y copiable como en cualquier PDF del navegador
+- La capa es invisible pero intercepta el mouse para selección
+- Usar `page.getTextContent()` + `pdfjsLib.renderTextLayer()` por página
+- Agregar CSS del text layer de PDF.js para resaltado de selección
+
+---
+
 ## 🚀 Funcionalidades adicionales sugeridas (para equipo de 20)
 
 ### Prioridad alta
