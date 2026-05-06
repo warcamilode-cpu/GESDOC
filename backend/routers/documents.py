@@ -92,16 +92,23 @@ def listar_documentos(
     else:
         docs = db.get_all_documents()
 
-    # Filtrar por biblioteca
+    # Filtrar por biblioteca — conversión explícita para evitar mismatch de tipos
+    uid = int(current_user.get("id", 0))
+    rol = current_user.get("role", "lector")
+
     if biblioteca == "personal":
-        if current_user["role"] == "admin":
+        if rol == "admin":
+            # Admin ve TODAS las personales
             docs = [d for d in docs if d.get("biblioteca") == "personal"]
         else:
+            # Editor/Lector solo ven las suyas
             docs = [d for d in docs
                     if d.get("biblioteca") == "personal"
-                    and d.get("owner_id") == current_user["id"]]
+                    and int(d.get("owner_id") or 0) == uid]
     else:
-        docs = [d for d in docs if d.get("biblioteca", "general") == "general"]
+        # Biblioteca general: solo docs marcados como "general"
+        docs = [d for d in docs
+                if d.get("biblioteca", "general") == "general"]
 
     if status:
         docs = [d for d in docs if d["status"] == status]
