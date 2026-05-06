@@ -339,6 +339,61 @@ def get_all_documents():
     return [dict(r) for r in rows]
 
 
+# ── Consultas filtradas por biblioteca y usuario (nivel SQL) ─────────────────
+
+def _where_biblioteca(biblioteca: str, user_id: int, role: str) -> tuple:
+    """
+    Devuelve (cláusula WHERE, parámetros) para filtrar documentos
+    según biblioteca y permisos del usuario.
+    """
+    if biblioteca == "personal":
+        if role == "admin":
+            return "COALESCE(biblioteca,'general') = 'personal'", []
+        else:
+            return "COALESCE(biblioteca,'general') = 'personal' AND owner_id = ?", [user_id]
+    else:
+        # general: cualquier doc que NO sea personal
+        return "COALESCE(biblioteca,'general') = 'general'", []
+
+
+def get_all_documents_for_user(user_id: int, role: str, biblioteca: str = "general"):
+    where, params = _where_biblioteca(biblioteca, user_id, role)
+    conn = get_connection()
+    rows = conn.execute(
+        f"SELECT * FROM documents WHERE {where} ORDER BY added_at DESC", params
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_documents_in_folder_for_user(folder_id: int, user_id: int, role: str,
+                                     biblioteca: str = "general"):
+    where, params = _where_biblioteca(biblioteca, user_id, role)
+    conn = get_connection()
+    rows = conn.execute(
+        f"SELECT d.* FROM documents d "
+        f"JOIN document_folders df ON d.id = df.document_id "
+        f"WHERE df.folder_id = ? AND {where} ORDER BY d.name",
+        [folder_id] + params,
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_unfoldered_documents_for_user(user_id: int, role: str,
+                                      biblioteca: str = "general"):
+    where, params = _where_biblioteca(biblioteca, user_id, role)
+    conn = get_connection()
+    rows = conn.execute(
+        f"SELECT * FROM documents "
+        f"WHERE id NOT IN (SELECT DISTINCT document_id FROM document_folders) "
+        f"AND {where} ORDER BY name",
+        params,
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 def get_document(doc_id):
     conn = get_connection()
     row = conn.execute("SELECT * FROM documents WHERE id=?", (doc_id,)).fetchone()
