@@ -1588,6 +1588,11 @@ function crearNodoCarpeta(carpeta) {
     <i class='bx bxs-folder f-icon' style="color:${carpeta.color || 'var(--blue)'};"></i>
     <span class="f-label">${escapeHtml(carpeta.name)}</span>
     <span class="f-actions">
+      <button class="btn-icon btn-sm" title="Subir archivo en esta carpeta"
+              style="color:var(--blue);"
+              onclick="event.stopPropagation();abrirSubirEnCarpeta(${carpeta.id},'${escapeHtml(carpeta.name)}','${carpeta.biblioteca||'general'}')">
+        <i class='bx bx-upload'></i>
+      </button>
       <button class="btn-icon btn-sm" title="Nueva subcarpeta" onclick="event.stopPropagation();abrirModalCarpeta(null,${carpeta.id})"><i class='bx bx-folder-plus'></i></button>
       <button class="btn-icon btn-sm" title="Editar" onclick="event.stopPropagation();abrirModalCarpeta(${carpeta.id})"><i class='bx bx-edit'></i></button>
       <button class="btn-icon btn-sm" title="Eliminar" onclick="event.stopPropagation();eliminarCarpeta(${carpeta.id})"><i class='bx bx-trash'></i></button>
@@ -2306,8 +2311,20 @@ async function abrirModalSubir() {
   abrirModalSubirConArchivos([]);
 }
 
-async function abrirModalSubirConArchivos(archivos) {
-  const carpetas = await api('GET', '/folders/').catch(() => []);
+async function abrirSubirEnCarpeta(folderId, folderNombre, folderBiblioteca) {
+  // Si la biblioteca de la carpeta es distinta a la activa, cambiamos primero
+  if (folderBiblioteca && folderBiblioteca !== estado.biblioteca) {
+    estado.biblioteca = folderBiblioteca;
+    document.getElementById('btn-biblioteca').textContent =
+      folderBiblioteca === 'personal' ? '👤 Personal' : '📚 General';
+    await cargarArbol();
+  }
+  abrirModalSubirConArchivos([], folderId, folderBiblioteca || estado.biblioteca);
+}
+
+async function abrirModalSubirConArchivos(archivos, preselectedFolderId = null, preselectedBiblioteca = null) {
+  const bib = preselectedBiblioteca || estado.biblioteca;
+  const carpetas = await api('GET', `/folders/?biblioteca=${bib}`).catch(() => []);
   const overlay  = crearOverlay();
   overlay.innerHTML = `
     <div class="modal" style="max-width:520px;">
@@ -2324,14 +2341,14 @@ async function abrirModalSubirConArchivos(archivos) {
           <label>Carpeta destino</label>
           <select id="m-folder-dest">
             <option value="">Sin carpeta</option>
-            ${carpetas.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('')}
+            ${carpetas.map(f => `<option value="${f.id}" ${f.id===preselectedFolderId?'selected':''}>${escapeHtml(f.name)}</option>`).join('')}
           </select>
         </div>
         <div class="modal-field">
           <label>Biblioteca</label>
           <select id="m-biblioteca">
-            <option value="general">📚 General</option>
-            <option value="personal" ${estado.biblioteca==='personal'?'selected':''}>👤 Personal</option>
+            <option value="general" ${bib==='general'?'selected':''}>📚 General</option>
+            <option value="personal" ${bib==='personal'?'selected':''}>👤 Personal</option>
           </select>
         </div>
         <div class="modal-field">
@@ -2346,6 +2363,7 @@ async function abrirModalSubirConArchivos(archivos) {
         <label>Tags (separados por coma)</label>
         <input id="m-tags" placeholder="norma, eaab, circular…">
       </div>
+      ${preselectedFolderId ? `<p style="font-size:8pt;color:var(--blue);margin:0 0 4px;"><i class='bx bx-folder'></i> Carpeta preseleccionada — puedes cambiarla si lo deseas.</p>` : ''}
       ${htmlSeccionMetadatos()}
       <div class="modal-actions">
         <button class="btn btn-ghost" onclick="cerrarModal()"><i class='bx bx-x'></i> Cancelar</button>
