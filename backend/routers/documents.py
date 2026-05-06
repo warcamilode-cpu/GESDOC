@@ -8,11 +8,12 @@ import io
 import html as html_lib
 from typing import Optional, List
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Query
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Query, Depends
 from fastapi.responses import FileResponse, HTMLResponse
 
 import database as db
 from backend.models import DocumentRead, DocumentUpdate
+from backend.auth import get_current_user, require_editor
 
 router = APIRouter()
 
@@ -81,6 +82,8 @@ def listar_documentos(
     vigencia_estado: Optional[str] = Query(None),
     tipo_norma:      Optional[str] = Query(None),
     entidad_emisora: Optional[str] = Query(None),
+    biblioteca:      str           = Query("general"),   # general | personal
+    current_user:    dict          = Depends(get_current_user),
 ):
     if sin_carpeta:
         docs = db.get_unfoldered_documents()
@@ -88,6 +91,17 @@ def listar_documentos(
         docs = db.get_documents_in_folder(folder_id)
     else:
         docs = db.get_all_documents()
+
+    # Filtrar por biblioteca
+    if biblioteca == "personal":
+        if current_user["role"] == "admin":
+            docs = [d for d in docs if d.get("biblioteca") == "personal"]
+        else:
+            docs = [d for d in docs
+                    if d.get("biblioteca") == "personal"
+                    and d.get("owner_id") == current_user["id"]]
+    else:
+        docs = [d for d in docs if d.get("biblioteca", "general") == "general"]
 
     if status:
         docs = [d for d in docs if d["status"] == status]
@@ -113,6 +127,8 @@ async def subir_documento(
     fecha_expedicion: str           = Form(""),
     fecha_vigencia:   str           = Form(""),
     vigencia_estado:  str           = Form("Por confirmar"),
+    biblioteca:       str           = Form("general"),
+    current_user:     dict          = Depends(require_editor),
 ):
     ext = (file.filename or "").rsplit(".", 1)[-1].lower()
     if ext not in FORMATOS_VALIDOS:
@@ -138,6 +154,7 @@ async def subir_documento(
             tipo_norma=tipo_norma, numero_norma=numero_norma,
             entidad_emisora=entidad_emisora, fecha_expedicion=fecha_expedicion,
             fecha_vigencia=fecha_vigencia, vigencia_estado=vigencia_estado,
+            owner_id=current_user["id"], biblioteca=biblioteca,
         )
         if doc_id is None:
             raise HTTPException(500, "No se pudo guardar el documento")
