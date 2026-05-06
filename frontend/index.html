@@ -1627,8 +1627,7 @@ async function renderVisorHeader(doc) {
   document.getElementById('viewer-toolbar').innerHTML = `
     <button class="btn-icon" onclick="abrirModalEditarDoc()" title="Editar"><i class='bx bx-edit'></i></button>
     <button class="btn-icon" onclick="abrirModalMoverDoc()" title="Mover a carpeta"><i class='bx bx-transfer'></i></button>
-    <a class="btn-icon" href="/api/documents/${doc.id}/file?descarga=true"
-       download="${escapeHtml(doc.name)}" title="Descargar"><i class='bx bx-download'></i></a>
+    <button class="btn-icon" onclick="descargarArchivo(${doc.id}, '${escapeHtml(doc.name)}')" title="Descargar"><i class='bx bx-download'></i></button>
     <button class="btn-icon" onclick="exportarComentarios('excel')" title="Exportar Excel"><i class='bx bx-spreadsheet'></i></button>
     <button class="btn-icon" onclick="exportarComentarios('csv')" title="Exportar CSV"><i class='bx bx-table'></i></button>
     <div id="page-indicator">
@@ -1745,7 +1744,10 @@ async function renderPDF(url, container) {
   container.innerHTML =
     '<div style="padding:3rem;text-align:center;color:var(--subtext0);">Cargando PDF…</div>';
   try {
-    const pdfDoc = await pdfjsLib.getDocument(url).promise;
+    const pdfDoc = await pdfjsLib.getDocument({
+      url,
+      httpHeaders: { 'Authorization': `Bearer ${getToken()}` },
+    }).promise;
     container.innerHTML = '';
     const total = pdfDoc.numPages;
     const ancho = container.clientWidth - 48;
@@ -1976,11 +1978,35 @@ async function ciclarEstadoComentario(id, actual) {
   } catch (e) { toast(e.message, 'error'); }
 }
 
-function exportarComentarios(tipo) {
+async function descargarArchivo(docId, nombre) {
+  try {
+    const res = await fetch(`/api/documents/${docId}/file?descarga=true`, {
+      headers: { 'Authorization': `Bearer ${getToken()}` },
+    });
+    if (!res.ok) throw new Error('Error al descargar');
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = nombre; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (e) { toast('Error al descargar: ' + e.message, 'error'); }
+}
+
+async function exportarComentarios(tipo) {
   if (!estado.docActual) { toast('Abre un documento primero', 'error'); return; }
-  Object.assign(document.createElement('a'), {
-    href: `/api/export/${tipo}?doc_id=${estado.docActual.id}`
-  }).click();
+  try {
+    const res = await fetch(`/api/export/${tipo}?doc_id=${estado.docActual.id}`, {
+      headers: { 'Authorization': `Bearer ${getToken()}` },
+    });
+    if (!res.ok) throw new Error('Error al exportar');
+    const blob = await res.blob();
+    const cd   = res.headers.get('Content-Disposition') || '';
+    const nombre = cd.match(/filename="?([^"]+)"?/)?.[1] || `comentarios.${tipo}`;
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = nombre; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (e) { toast('Error al exportar: ' + e.message, 'error'); }
 }
 
 // ─── Búsqueda global ─────────────────────────────────────────────────────────
