@@ -1349,7 +1349,44 @@ function guardarSesion(token, user) {
   estado.usuarioActual = user;
 }
 
+function limpiarEstadoApp() {
+  // Resetear todo el estado para que el próximo usuario empiece limpio
+  estado.docActual       = null;
+  estado.carpetaActiva   = null;
+  estado.respondiendo    = null;
+  estado.terminoBusqueda = '';
+  estado.biblioteca      = 'general';
+  // Limpiar visor
+  document.getElementById('viewer-header')?.classList.add('hidden');
+  document.getElementById('pdf-container').style.display   = 'none';
+  document.getElementById('html-content').style.display    = 'none';
+  document.getElementById('viewer-placeholder').style.display = 'flex';
+  document.getElementById('pdf-container').innerHTML       = '';
+  // Limpiar comentarios
+  document.getElementById('comments-form').style.display   = 'none';
+  document.getElementById('comments-list').innerHTML =
+    `<div class="comments-empty"><i class='bx bx-message-square-x'></i><span>Abre un documento para ver sus comentarios</span></div>`;
+  document.getElementById('comment-count').textContent = '0';
+  // Limpiar sidebar
+  document.getElementById('sidebar-scroll').innerHTML = '';
+  // Limpiar tabs de norma si existen
+  const normaPanel = document.getElementById('norma-panel');
+  if (normaPanel) normaPanel.remove();
+  // Resetear indicador de página PDF
+  _actualizarIndicador(0, 0);
+  if (_pdfPageObserver) { _pdfPageObserver.disconnect(); _pdfPageObserver = null; }
+  _pdfPageEls = [];
+  // Resetear tab activo de biblioteca
+  document.querySelectorAll('.biblioteca-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-general')?.classList.add('active');
+  // Limpiar banner de vigencia
+  document.getElementById('vigencia-banner')?.remove();
+  // Cerrar modales
+  cerrarModal();
+}
+
 function cerrarSesion() {
+  limpiarEstadoApp();
   localStorage.removeItem('gesdoc_token');
   localStorage.removeItem('gesdoc_user');
   estado.usuarioActual = null;
@@ -1436,10 +1473,17 @@ async function cargarStats() {
 
 // ─── Sidebar: árbol de carpetas ───────────────────────────────────────────────
 async function cargarArbol() {
-  const bib = estado.biblioteca;
+  const bib  = estado.biblioteca;
+  const user = estado.usuarioActual;
   try {
+    // Admin en modo personal → vista agrupada por usuario
+    if (bib === 'personal' && user?.role === 'admin') {
+      const grupos = await api('GET', '/documents/personal-por-usuario');
+      renderSidebarPersonalAdmin(grupos);
+      return;
+    }
     const [arbol, todos, sinCarpeta] = await Promise.all([
-      api('GET', '/folders/tree'),
+      api('GET', `/folders/tree?biblioteca=${bib}`),
       api('GET', `/documents/?biblioteca=${bib}`),
       api('GET', `/documents/?sin_carpeta=true&biblioteca=${bib}`),
     ]);
@@ -1447,6 +1491,26 @@ async function cargarArbol() {
     renderSidebar(arbol, todos, sinCarpeta);
   } catch (e) {
     toast('Error cargando biblioteca: ' + e.message, 'error');
+  }
+}
+
+function renderSidebarPersonalAdmin(grupos) {
+  const scroll = document.getElementById('sidebar-scroll');
+  scroll.innerHTML = '';
+  if (!grupos.length) {
+    scroll.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--overlay0);font-size:8.5pt;">Sin documentos personales</div>';
+    return;
+  }
+  for (const grupo of grupos) {
+    // Cabecera de usuario
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'padding:6px 10px 3px;font-size:7.5pt;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.8px;border-top:1px solid var(--surface0);margin-top:4px;display:flex;align-items:center;gap:6px;';
+    hdr.innerHTML = `<i class='bx bx-user' style="font-size:10pt;"></i>${escapeHtml(grupo.usuario)}`;
+    scroll.appendChild(hdr);
+    // Documentos del usuario
+    for (const doc of grupo.documentos) {
+      scroll.appendChild(crearTarjetaDoc(doc));
+    }
   }
 }
 
@@ -1744,66 +1808,107 @@ async function renderPDF(url, container) {
   container.innerHTML =
     '<div style="padding:3rem;text-align:center;color:var(--subtext0);">Cargando PDF…</div>';
   try {
-    const pdfDoc = await pdfjsLib.getDocument({
+    const pdfDoc  = await pdfjsLib.getDocument({
       url,
       httpHeaders: { 'Authorization': `Bearer ${getToken()}` },
     }).promise;
     container.innerHTML = '';
-    const total = pdfDoc.numPages;
-    const ancho = container.clientWidth - 48;
+    const total   = pdfDoc.numPages;
+    const ancho   = container.clientWidth - 48;
 
-    // Observer para detectar qué página es visible al hacer scroll
-    _pdfPageObserver = new IntersectionObserver((entries) => {
-      let maxRatio = 0, paginaVis = _paginaActual;
-      entries.forEach(e => {
-        if (e.intersectionRatio > maxRatio) {
-          maxRatio = e.intersectionRatio;
-          paginaVis = parseInt(e.target.dataset.page);
-        }
-      });
-      if (maxRatio > 0) _actualizarIndicador(paginaVis, total);
-    }, { root: container, threshold: [0, 0.25, 0.5, 0.75, 1] });
+    // Pre-calcula escala con la primera página para usar en placeholders
+    const pag1    = await pdfDoc.getPage(1);
+    const escala0 = Math.min(ancho / pag1.getViewport({ scale: 1 }).width, 2);
+    const vp0     = pag1.getViewport({ scale: escala0 });
 
-    for (let n = 1; n <= total; n++) {
+    // Cola de páginas pendientes de renderizar
+    const cola = new Set();
+    let renderizando = false;
+
+    async function renderizarPagina(n) {
+      const wrap = _pdfPageEls[n - 1];
+      if (!wrap || wrap.dataset.rendered === '1') return;
+      wrap.dataset.rendered = '1';
+
       const page     = await pdfDoc.getPage(n);
       const escala   = Math.min(ancho / page.getViewport({ scale: 1 }).width, 2);
       const viewport = page.getViewport({ scale: escala });
 
-      // Contenedor posicionado (canvas + text layer juntos)
-      const wrap = document.createElement('div');
-      wrap.className  = 'pdf-page-wrap';
-      wrap.dataset.page = n;
       wrap.style.width  = viewport.width  + 'px';
       wrap.style.height = viewport.height + 'px';
+      wrap.style.background = '';
+      wrap.innerHTML = '';
 
-      // Canvas de renderizado
-      const canvas  = document.createElement('canvas');
+      const canvas = document.createElement('canvas');
       canvas.width  = viewport.width;
       canvas.height = viewport.height;
       await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
       wrap.appendChild(canvas);
 
-      // Text layer — permite seleccionar y copiar texto del PDF
+      // Text layer para selección y copia de texto
       const textLayerDiv = document.createElement('div');
-      textLayerDiv.className   = 'textLayer';
+      textLayerDiv.className    = 'textLayer';
       textLayerDiv.style.width  = viewport.width  + 'px';
       textLayerDiv.style.height = viewport.height + 'px';
       wrap.appendChild(textLayerDiv);
-
       const textContent = await page.getTextContent();
       pdfjsLib.renderTextLayer({
         textContentSource: textContent,
-        container:  textLayerDiv,
-        viewport:   viewport,
-        textDivs:   [],
+        container: textLayerDiv, viewport, textDivs: [],
       });
+    }
 
+    async function procesarCola() {
+      if (renderizando) return;
+      renderizando = true;
+      while (cola.size > 0) {
+        const n = cola.values().next().value;
+        cola.delete(n);
+        await renderizarPagina(n);
+      }
+      renderizando = false;
+    }
+
+    // IntersectionObserver: detecta páginas visibles y las pone en cola
+    _pdfPageObserver = new IntersectionObserver((entries) => {
+      let maxRatio = 0, paginaVis = _paginaActual;
+      entries.forEach(e => {
+        const n = parseInt(e.target.dataset.page);
+        if (e.isIntersecting) {
+          // Renderiza la página visible + 1 de buffer a cada lado
+          [n - 1, n, n + 1].forEach(x => {
+            if (x >= 1 && x <= total && _pdfPageEls[x-1]?.dataset.rendered !== '1')
+              cola.add(x);
+          });
+          procesarCola();
+        }
+        if (e.intersectionRatio > maxRatio) {
+          maxRatio = e.intersectionRatio; paginaVis = n;
+        }
+      });
+      if (maxRatio > 0) _actualizarIndicador(paginaVis, total);
+    }, { root: container, threshold: [0, 0.1, 0.5] });
+
+    // Crea placeholders para todas las páginas (altura aproximada)
+    for (let n = 1; n <= total; n++) {
+      const wrap = document.createElement('div');
+      wrap.className    = 'pdf-page-wrap';
+      wrap.dataset.page = n;
+      wrap.dataset.rendered = '0';
+      wrap.style.cssText = `width:${vp0.width}px;height:${vp0.height}px;
+        background:#141420;margin:0 auto 12px;border-radius:3px;
+        display:flex;align-items:center;justify-content:center;color:var(--surface2);font-size:9pt;`;
+      wrap.textContent = `Página ${n}`;
       container.appendChild(wrap);
       _pdfPageEls.push(wrap);
       _pdfPageObserver.observe(wrap);
     }
 
+    // Renderiza las primeras 2 páginas de inmediato
+    cola.add(1); if (total > 1) cola.add(2);
+    procesarCola();
     _actualizarIndicador(1, total);
+
   } catch (e) {
     container.innerHTML =
       `<div style="padding:2rem;color:var(--red);text-align:center;">Error: ${escapeHtml(e.message)}</div>`;
@@ -2140,7 +2245,11 @@ async function guardarCarpeta(carpetaId, parentId = null) {
       await api('PUT', `/folders/${carpetaId}`, { name, icon, color });
       toast('Carpeta actualizada', 'ok');
     } else {
-      await api('POST', '/folders/', { name, icon, color, parent_id: parentId || null });
+      await api('POST', '/folders/', {
+        name, icon, color,
+        parent_id:  parentId || null,
+        biblioteca: estado.biblioteca,   // hereda la biblioteca activa
+      });
       toast(parentId ? 'Subcarpeta creada' : 'Carpeta creada', 'ok');
     }
     cerrarModal();
@@ -3086,6 +3195,7 @@ async function eliminarUsuario(userId, username) {
 async function iniciarApp() {
   const user = getUsuario();
   if (!user) { mostrarLogin(); return; }
+  limpiarEstadoApp();
   estado.usuarioActual = user;
   renderizarChipUsuario(user);
   // Ocultar pestaña Personal para Lectors

@@ -28,6 +28,7 @@ async def lifespan(app: FastAPI):
     db.init_relations()
     # Migraciones de usuarios
     db.init_users()
+    db.add_campos_usuario_carpeta()
     db.add_campos_usuario_documento()
     # Repositorio físico
     db.ensure_vault()
